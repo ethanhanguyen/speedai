@@ -1,0 +1,17 @@
+{
+  "name": "speedai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
