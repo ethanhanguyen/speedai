@@ -89,7 +89,70 @@ Check which built-in systems to use:
 | levels | json | /data/levels.json | Level configs |
 | sprites | atlas | /sprites/atlas.json | Spritesheet |
 
-## 7. UI Overlay
+## 7. Sprite Generation (Optional)
+
+If using AI image generation tools (e.g., nano banana, DALL-E, Midjourney) to create sprites:
+
+### Best Practices for Consistent Results
+
+1. **Establish a Style Guide First**
+   - Generate a reference sprite with your desired style
+   - Document the exact prompt that produced good results
+   - Use this as a template for all subsequent sprites
+
+2. **Prompt Structure**
+   ```
+   [Subject], [Style], [View/Angle], [Background], [Technical specs]
+
+   Example:
+   "pixel art bird character, 16-bit retro game style, side view, transparent background,
+   64x64 pixels, simple shapes, bright colors, no gradients"
+   ```
+
+3. **Consistency Techniques**
+   - **Lock the style**: Always use the same style descriptor (e.g., "16-bit pixel art", "flat design 2D", "hand-drawn cartoon")
+   - **Fixed perspective**: Specify the same view angle for all sprites (e.g., "side view", "top-down", "isometric")
+   - **Color palette**: Define a color palette upfront and include it in prompts (e.g., "using colors: #FF6B6B, #4ECDC4, #FFD93D")
+   - **Reference sprites**: Include "similar to [first sprite description]" for related assets
+   - **Technical consistency**: Always specify the same dimensions and technical requirements
+
+4. **Recommended Prompt Elements**
+   - ✅ Subject (what the sprite is)
+   - ✅ Art style (pixel art, flat design, vector, cartoon, etc.)
+   - ✅ Perspective (side view, top-down, 3/4 view)
+   - ✅ Background (transparent, solid color, none)
+   - ✅ Dimensions (64x64, 128x128, etc.)
+   - ✅ Color palette or color restrictions
+   - ✅ Level of detail (simple, detailed, minimalist)
+   - ❌ Avoid: vague terms like "cool" or "awesome"
+
+5. **Example Prompt Set for a Game**
+   ```
+   Player sprite:
+   "cute bird character, 16-bit pixel art style, side view facing right, transparent background,
+   64x64 pixels, using colors #FFD700 #FF6347 #4169E1, simple rounded shapes"
+
+   Enemy sprite:
+   "angry pipe obstacle, 16-bit pixel art style, side view, transparent background,
+   64x64 pixels, using colors #228B22 #006400, simple geometric shapes, same style as bird character"
+
+   Background element:
+   "fluffy cloud, 16-bit pixel art style, side view, transparent background,
+   128x64 pixels, using colors #FFFFFF #E0E0E0, simple rounded shapes, same style as bird character"
+   ```
+
+6. **Post-Generation Cleanup**
+   - Verify all sprites are the correct dimensions
+   - Ensure backgrounds are truly transparent (check alpha channel)
+   - Maintain consistent DPI/resolution
+   - Test sprites at actual game scale to check readability
+
+7. **When NOT to Use AI Generation**
+   - If you need pixel-perfect precision (hand-draw or use sprite editor)
+   - If you need animation frames with exact pixel correspondence
+   - If licensing/copyright is critical (verify terms of your AI tool)
+
+## 8. UI Overlay
 
 Which canvas UI components:
 
@@ -103,19 +166,19 @@ Which canvas UI components:
 - [ ] **VirtualButton** — [position, label, e.g. "A"/"B"]
 - [ ] **DPad** — [position, size]
 
-## 8. Effects
+## 9. Effects
 
 - [ ] **ScreenShake** — [trigger: hit, explosion]
 - [ ] **Flash** — [trigger: damage, power-up]
 - [ ] **SlowMotion** — [trigger: near-miss, boss kill]
 - [ ] **ParticleBurst** — [trigger: destroy, collect]
 
-## 9. Persistence
+## 10. Persistence
 
 - [ ] **LocalStorage** — [what to save: high score, settings, progress]
 - [ ] **CloudSave** — [endpoint, what to sync]
 
-## 10. Social (optional)
+## 11. Social (optional)
 
 - [ ] **Leaderboard** — [board names, metric type]
 - [ ] **Achievements** — list below:
@@ -125,7 +188,7 @@ Which canvas UI components:
 - [ ] **Challenges** — [daily/weekly, goal type]
 - [ ] **Sharing** — [platforms: twitter, clipboard, web-share]
 
-## 11. Engine Config
+## 12. Engine Config
 
 ```typescript
 {
@@ -144,6 +207,6 @@ Which canvas UI components:
 }
 ```
 
-## 12. Anything Else
+## 13. Anything Else
 
 - [Edge cases, special mechanics, monetization hooks, accessibility needs]
