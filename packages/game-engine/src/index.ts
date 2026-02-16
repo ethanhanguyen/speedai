@@ -133,3 +133,19 @@ export type { UserStats } from './social/AchievementManager.js';
 export { ChallengeManager } from './social/ChallengeManager.js';
 export { ProfileManager } from './social/ProfileManager.js';
 export { SharingManager } from './social/SharingManager.js';
+
+// ─── Grid ───
+export { GridModel, NeighborDirection } from './grid/GridModel.js';
+export { GridMatcher } from './grid/GridMatcher.js';
+export type { Match, MatchPattern, ScanDirection, PatternRule, GridMatcherConfig } from './grid/GridMatcher.js';
+export { GridGravity } from './grid/GridGravity.js';
+export type { GravityDirection, FallMove, RefillEntry } from './grid/GridGravity.js';
+export { GridInput } from './grid/GridInput.js';
+export type { CellTapEvent, CellSwipeEvent, CellDragEvent, CellTapCallback, CellSwipeCallback, CellDragCallback, GridInputConfig } from './grid/GridInput.js';
+export { GridRenderer } from './grid/GridRenderer.js';
+export type { GridRendererConfig } from './grid/GridRenderer.js';
+
+// ─── Utils ───
+export { WeightedPicker } from './utils/WeightedPicker.js';
+export { ObjectiveTracker } from './utils/ObjectiveTracker.js';
+export type { ObjectiveDef, ObjectiveState } from './utils/ObjectiveTracker.js';

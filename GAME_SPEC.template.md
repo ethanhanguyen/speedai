@@ -1,6 +1,7 @@
 # Game Spec: [Game Name]
 
 Uses `@speedai/game-engine` (ECS architecture, Canvas 2D).
+**Event-driven effects**: Use EventBus for decoupled shake/particles/audio.
 
 ---
 
@@ -68,6 +69,19 @@ Check which built-in systems to use:
 
 ### Custom Systems
 - [System name]: [What it does, which components it queries]
+
+### Grid & Utility Helpers
+
+For grid-based games (match-3, puzzle, tower defense):
+
+- **GridModel<T>** — Generic 2D grid with coordinate conversion, neighbor queries
+  - Methods: get/set/clear/fill/forEach/map/iterator
+  - `screenToGrid(x,y)` / `gridToScreen(r,c)` conversion
+  - `getNeighbors(r,c, directions)` — 4-way/8-way/hex support
+
+- **WeightedPicker<T>** — Weighted random selection
+  - `pick(items, weightFn)` / `pickN(items, n, weightFn)`
+  - History-aware penalty support via `withHistory(maxHistory)`
 
 ## 5. Scenes
 

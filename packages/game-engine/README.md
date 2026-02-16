@@ -15,6 +15,17 @@ npm install matter-js  # Physics (MatterAdapter)
 npm install howler      # Audio (HowlerAdapter)
 ```
 
+## Features
+
+- **ECS Architecture** — Entity-Component-System for clean separation of data/logic
+- **Zero Dependencies** — Core engine has no runtime deps (optional: howler, matter-js)
+- **TypeScript** — Full type safety with generics
+- **Swappable Backends** — Interface-based: swap renderer/physics/sound/input
+- **Mobile-First** — Touch, gestures, virtual controls (joystick, buttons, d-pad)
+- **Performance** — Object pooling, sprite batching, fixed timestep
+- **Social** — Leaderboards, achievements, challenges, sharing
+- **Grid Utilities** — GridModel<T> for match-3/puzzle, WeightedPicker for loot/spawns
+
 ## Quick Start
 
 ```typescript
@@ -133,6 +144,19 @@ Entity (ID) ← Components (data) ← Systems (logic)
 | `ParticleBurst` | One-shot particle explosion (pooled) |
 | `Flash` | Full-screen color flash |
 | `Juice` | Convenience wrapper grouping all effects |
+
+### Grid & Utilities
+
+| Export | Description |
+|--------|-------------|
+| `GridModel<T>` | Generic 2D grid: get/set/clear/fill/forEach/map, screen↔grid conversion, neighbor queries (4-way/8-way/hex), iterator support |
+| `GridMatcher<T>` | Configurable pattern detection (line/L/T/cross), generic matching rules, metadata extraction |
+| `GridGravity` | Static helpers: `compact(grid, direction)` returns FallMove[], `refill(grid, generator)` returns RefillEntry[] |
+| `GridInput<T>` | Grid-aware input wrapper: onCellTap/Swipe/Drag callbacks, selection state, adjacency validation |
+| `GridRenderer<T>` | Base grid renderer: cell backgrounds, selection highlights, debug overlay, override `drawCell()` for custom content |
+| `WeightedPicker<T>` | Weighted random selection with `pick(items, weightFn)` / `pickN()`, optional history tracking via `withHistory(maxHistory)` |
+| `ObjectiveTracker` | Per-level objective tracking: `add(def)`, `increment(id, amount)`, `allComplete()`, `getAll()` |
+| `NeighborDirection` | Enum: FOUR_WAY, EIGHT_WAY, HEX |
 
 ### Persistence
 
@@ -270,6 +294,92 @@ const achievements: AchievementConfig[] = [
 ];
 const achManager = new AchievementManager(provider, achievements);
 const unlocked = await achManager.check({ score: 9500, gamesPlayed: 1, streakDays: 0, levelCompleted: 1, custom: {} });
+```
+
+## Grid-Based Games
+
+Match-3, puzzle, tower defense:
+
+```typescript
+import { GridModel, NeighborDirection, WeightedPicker } from '@speedai/game-engine';
+
+// Create grid
+const grid = new GridModel<CellData>(8, 8, 64, 4); // rows, cols, cellSize, gap
+grid.fill((r, c) => ({ color: 'red', type: 'normal' }));
+
+// Access
+grid.set(2, 3, { color: 'blue', type: 'special' });
+const cell = grid.get(2, 3);
+
+// Coordinate conversion
+const { r, c } = grid.screenToGrid(mouseX, mouseY, boardOffsetX, boardOffsetY);
+const { x, y } = grid.gridToScreen(2, 3, boardOffsetX, boardOffsetY);
+
+// Neighbors
+const neighbors = grid.getNeighbors(2, 3, NeighborDirection.FOUR_WAY);
+const isAdjacent = grid.adjacentTo({r: 2, c: 3}, {r: 2, c: 4});
+
+// Iteration
+for (const [r, c, cell] of grid) {
+  console.log(`Cell at (${r},${c}):`, cell);
+}
+
+// Weighted random (e.g., loot drops, enemy spawns, ball colors)
+const picker = new WeightedPicker<string>();
+picker.withHistory(3); // penalize recent picks
+
+const colors = ['red', 'blue', 'green'];
+const color = picker.pick(colors, c => {
+  let weight = 1.0;
+  if (c === 'red') weight *= 2.0; // red 2x more likely
+  return weight;
+});
+
+// Pattern matching (match-3, bejeweled)
+import { GridMatcher } from '@speedai/game-engine';
+
+const matcher = new GridMatcher({
+  minMatchLength: 3,
+  directions: ['horizontal', 'vertical'],
+  patterns: GridMatcher.colorMatchPatterns(
+    cell => cell?.color,
+    cell => cell?.special === 'none'
+  ),
+});
+const matches = matcher.detectMatches(grid);
+
+// Gravity and refill
+import { GridGravity } from '@speedai/game-engine';
+
+const fallMoves = GridGravity.compact(grid, 'down');
+fallMoves.forEach(m => animateFall(m.fromR, m.fromC, m.toR, m.toC));
+
+const refills = GridGravity.refill(grid, (r, c) => ({ color: randomColor() }));
+refills.forEach(e => spawnBall(e.r, e.c, e.spawnOffset));
+
+// Grid input handling
+import { GridInput } from '@speedai/game-engine';
+
+const gridInput = new GridInput(unifiedInput, grid, { offsetX: 10, offsetY: 200 });
+gridInput.onCellTap(({ r, c }) => console.log('Tapped cell:', r, c));
+gridInput.onCellSwipe(({ fromR, fromC, toR, toC }) => swapCells(fromR, fromC, toR, toC));
+// Call in update loop: gridInput.update();
+
+// Grid rendering
+import { GridRenderer } from '@speedai/game-engine';
+
+class MyRenderer extends GridRenderer<CellData> {
+  drawCell(ctx, grid, r, c, cell) {
+    if (!cell) return;
+    const { x, y } = grid.gridToScreen(r, c, 10, 200);
+    ctx.fillStyle = cell.color;
+    ctx.fillRect(x - 20, y - 20, 40, 40);
+  }
+}
+const renderer = new MyRenderer({ offsetX: 10, offsetY: 200 });
+renderer.drawCellBackgrounds(ctx, grid);
+renderer.drawAllCells(ctx, grid);
+renderer.drawSelection(ctx, grid, 2, 3, performance.now());
 ```
 
 ## Interfaces

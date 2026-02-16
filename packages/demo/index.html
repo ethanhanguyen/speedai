@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeedAI — Game Arcade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #0a0a1a;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(120, 60, 200, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(60, 120, 220, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(220, 60, 100, 0.1) 0%, transparent 50%);
+      z-index: -1;
+    }
+
+    header {
+      text-align: center;
+      padding: 60px 20px 20px;
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea, #e74c3c, #f1c40f);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 4s ease infinite;
+    }
+
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    header p {
+      margin-top: 12px;
+      color: rgba(255,255,255,0.5);
+      font-size: 1.05rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 28px;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 0 24px;
+    }
+
+    .card {
+      position: relative;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .card-preview {
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Flappy Bird preview */
+    .card-preview.flappy {
+      background: linear-gradient(180deg, #70c5ce 0%, #70c5ce 70%, #ded895 70%, #ded895 100%);
+    }
+
+    .flappy-bird {
+      width: 34px;
+      height: 24px;
+      background: #f1c40f;
+      border-radius: 50%;
+      position: relative;
+      animation: flap 0.6s ease-in-out infinite;
+    }
+
+    .flappy-bird::before {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: 8px;
+      width: 10px;
+      height: 8px;
+      background: #e67e22;
+      border-radius: 0 50% 50% 0;
+    }
+
+    .flappy-bird::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 4px;
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: inset 2px 0 0 #333;
+    }
+
+    @keyframes flap {
+      0%, 100% { transform: translateY(0) rotate(-10deg); }
+      50% { transform: translateY(-18px) rotate(-20deg); }
+    }
+
+    .pipe {
+      position: absolute;
+      width: 40px;
+      background: #2ecc71;
+      border: 3px solid #27ae60;
+      border-radius: 4px;
+    }
+
+    .pipe-top { top: 0; height: 70px; right: 80px; }
+    .pipe-bottom { bottom: 30%; height: 80px; right: 80px; }
+    .pipe-top-2 { top: 0; height: 40px; right: 160px; }
+    .pipe-bottom-2 { bottom: 30%; height: 110px; right: 160px; }
+
+    /* Ball Crush preview */
+    .card-preview.crush {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+    }
+
+    .ball-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 30px);
+      grid-template-rows: repeat(3, 30px);
+      gap: 4px;
+    }
+
+    .ball {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .ball::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      width: 10px;
+      height: 6px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 50%;
+      transform: rotate(-20deg);
+    }
+
+    .ball.red    { background: radial-gradient(circle at 35% 35%, #ff7675, #e74c3c, #a33); }
+    .ball.blue   { background: radial-gradient(circle at 35% 35%, #74b9ff, #3498db, #236); }
+    .ball.green  { background: radial-gradient(circle at 35% 35%, #55efc4, #2ecc71, #1a7); }
+    .ball.yellow { background: radial-gradient(circle at 35% 35%, #ffeaa7, #f1c40f, #b89); }
+    .ball.purple { background: radial-gradient(circle at 35% 35%, #d6a3e8, #9b59b6, #638); }
+
+    .ball.pop {
+      animation: ball-pop 1.5s ease-in-out infinite;
+    }
+
+    @keyframes ball-pop {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(0.1); opacity: 0.3; }
+      70% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    .card-body h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .card-body p {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge.playable {
+      background: rgba(46, 204, 113, 0.15);
+      color: #2ecc71;
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+
+    .card-play {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+
+    .card:hover .card-play {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .play-icon {
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 8px 0 8px 14px;
+      border-color: transparent transparent transparent #fff;
+      margin-left: 3px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 20px 60px;
+      color: rgba(255,255,255,0.25);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: rgba(255,255,255,0.7);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SpeedAI Arcade</h1>
+    <p>Games built with the SpeedAI game engine</p>
+  </header>
+
+  <div class="grid">
+    <!-- Flappy Bird -->
+    <a class="card" href="http://localhost:3000" target="_blank" id="flappy-card">
+      <div class="card-preview flappy">
+        <div class="pipe pipe-top-2"></div>
+        <div class="pipe pipe-bottom-2"></div>
+        <div class="pipe pipe-top"></div>
+        <div class="pipe pipe-bottom"></div>
+        <div class="flappy-bird"></div>
+        <div class="card-play"><div class="play-icon"></div></div>
+      </div>
+      <div class="card-body">
+        <h2>Flappy Bird</h2>
+        <p>Tap to fly through pipes. Classic one-touch arcade gameplay with sprite-based rendering.</p>
+        <span class="badge playable">Playable</span>
+      </div>
+    </a>
+
+    <!-- Ball Crush -->
+    <a class="card" href="http://localhost:3001" target="_blank" id="crush-card">
+      <div class="card-preview crush">
+        <div class="ball-grid">
+          <div class="ball red"></div>
+          <div class="ball blue"></div>
+          <div class="ball green pop"></div>
+          <div class="ball green pop"></div>
+          <div class="ball yellow"></div>
+          <div class="ball purple"></div>
+          <div class="ball green pop"></div>
+          <div class="ball red"></div>
+          <div class="ball blue"></div>
+          <div class="ball purple"></div>
+          <div class="ball yellow"></div>
+          <div class="ball blue"></div>
+          <div class="ball yellow"></div>
+          <div class="ball red"></div>
+          <div class="ball green"></div>
+        </div>
+        <div class="card-play"><div class="play-icon"></div></div>
+      </div>
+      <div class="card-body">
+        <h2>Ball Crush</h2>
+        <p>Match 3+ colorful balls in any direction. Chain cascades, activate specials, and crush your high score.</p>
+        <span class="badge playable">Playable</span>
+      </div>
+    </a>
+  </div>
+
+  <footer>
+    Powered by <a href="#">@speedai/game-engine</a> — ECS game engine, Canvas 2D, zero dependencies
+  </footer>
+</body>
+</html>
