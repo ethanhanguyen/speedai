@@ -41,6 +41,17 @@ A single glossy candy sphere, tangerine orange color, 3D rendered, soft studio l
 
 ## Special Ball Overlays
 
+### Technical Specifications
+**Special Balls:** similar as red ball. black background. no shadow. internal glowing, glassy.
+- **Grid Layout:** 4 columns × 2 rows grid, each cell exactly 48×48 px
+- **Col 1:** two horizontal parallel light streaks, frosted glass look, overlay on white ball
+- **Col 2:** two vertical parallel light streaks, frosted glass look, overlay on white ball
+- **Col 3:** metallic bomb core with radiating energy spikes, chrome finish, overlay on white ball
+- **Col 4:** prismatic rainbow spiral, light refracting through crystal, overlay on white ball
+- **Row 1:** resting state — subtle glow
+- **Row 2:** active state — intensified bloom, strong brightness & glow
+- **Style:** Semi-transparent energy effects designed to composite over glass marbles
+
 ### Striped Horizontal
 ```
 A single glossy candy sphere, black color, with 3 thin luminous white horizontal stripes wrapping around the sphere, glowing neon stripe effect, 3D rendered, soft studio lighting, transparent background, game asset, centered, candy crush style
@@ -60,6 +71,21 @@ A single glossy candy sphere, white color, wrapped in a translucent glowing ener
 ```
 A single glossy candy sphere with swirling rainbow gradient surface, iridescent holographic shimmer, prismatic light reflections, magical sparkle particles around it, 3D rendered, soft studio lighting, transparent background, game asset, centered, candy crush style, special power-up
 ```
+
+---
+
+## Obstacles
+
+### Technical Specifications
+**Obstacles:** black background. no shadow.
+- **Grid Layout:** 3 columns × 3 rows grid, each cell exactly 48×48 px
+- **Col 1:** Granite stone block — rough grey rock, embedded quartz crystals, surface moss
+- **Col 2:** Ice block — translucent blue-white frozen cube, internal air bubbles, frosted surface, subsurface scattering, refraction
+- **Col 3:** Iron chain lock — dark weathered iron chain links forming square frame, rust patina, metallic specular
+- **Damage Progression (rows top to bottom):**
+  - **Row 1:** pristine, clean, undamaged
+  - **Row 2:** moderate damage — visible fracture lines, small chips missing
+  - **Row 3:** heavy damage — deep cracks, large chunks broken off, near crumbling
 
 ---
 

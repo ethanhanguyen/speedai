@@ -1,0 +1,332 @@
+{
+  "frames": {
+    "cell": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 177,
+        "h": 178
+      }
+    },
+    "ice_cracked_2": {
+      "frame": {
+        "x": 181,
+        "y": 2,
+        "w": 172,
+        "h": 174
+      }
+    },
+    "ice": {
+      "frame": {
+        "x": 355,
+        "y": 2,
+        "w": 171,
+        "h": 172
+      }
+    },
+    "ice_cracked_1": {
+      "frame": {
+        "x": 528,
+        "y": 2,
+        "w": 171,
+        "h": 172
+      }
+    },
+    "stone_cracked_2": {
+      "frame": {
+        "x": 701,
+        "y": 2,
+        "w": 164,
+        "h": 156
+      }
+    },
+    "stone_cracked_1": {
+      "frame": {
+        "x": 867,
+        "y": 2,
+        "w": 160,
+        "h": 152
+      }
+    },
+    "stone": {
+      "frame": {
+        "x": 1029,
+        "y": 2,
+        "w": 162,
+        "h": 151
+      }
+    },
+    "heart": {
+      "frame": {
+        "x": 1193,
+        "y": 2,
+        "w": 140,
+        "h": 120
+      }
+    },
+    "special_ball_bomb_1": {
+      "frame": {
+        "x": 1335,
+        "y": 2,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_bomb_2": {
+      "frame": {
+        "x": 1451,
+        "y": 2,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_bomb_3": {
+      "frame": {
+        "x": 1567,
+        "y": 2,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_h_1": {
+      "frame": {
+        "x": 1683,
+        "y": 2,
+        "w": 115,
+        "h": 115
+      }
+    },
+    "special_ball_rainbow_1": {
+      "frame": {
+        "x": 1800,
+        "y": 2,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_rainbow_2": {
+      "frame": {
+        "x": 1916,
+        "y": 2,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_rainbow_3": {
+      "frame": {
+        "x": 2,
+        "y": 182,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_v_1": {
+      "frame": {
+        "x": 118,
+        "y": 182,
+        "w": 114,
+        "h": 115
+      }
+    },
+    "special_ball_h_2": {
+      "frame": {
+        "x": 234,
+        "y": 182,
+        "w": 115,
+        "h": 114
+      }
+    },
+    "special_ball_h_3": {
+      "frame": {
+        "x": 351,
+        "y": 182,
+        "w": 115,
+        "h": 114
+      }
+    },
+    "special_ball_v_2": {
+      "frame": {
+        "x": 468,
+        "y": 182,
+        "w": 114,
+        "h": 114
+      }
+    },
+    "special_ball_v_3": {
+      "frame": {
+        "x": 584,
+        "y": 182,
+        "w": 114,
+        "h": 114
+      }
+    },
+    "ring": {
+      "frame": {
+        "x": 700,
+        "y": 182,
+        "w": 89,
+        "h": 89
+      }
+    },
+    "blue_ball": {
+      "frame": {
+        "x": 791,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "blue_ball_cracked_1": {
+      "frame": {
+        "x": 855,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "blue_ball_cracked_2": {
+      "frame": {
+        "x": 919,
+        "y": 182,
+        "w": 61,
+        "h": 61
+      }
+    },
+    "green_ball": {
+      "frame": {
+        "x": 982,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "green_ball_cracked_1": {
+      "frame": {
+        "x": 1046,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "green_ball_cracked_2": {
+      "frame": {
+        "x": 1110,
+        "y": 182,
+        "w": 60,
+        "h": 61
+      }
+    },
+    "orange_ball": {
+      "frame": {
+        "x": 1172,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "orange_ball_cracked_1": {
+      "frame": {
+        "x": 1236,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "orange_ball_cracked_2": {
+      "frame": {
+        "x": 1300,
+        "y": 182,
+        "w": 61,
+        "h": 61
+      }
+    },
+    "purple_ball": {
+      "frame": {
+        "x": 1363,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "purple_ball_cracked_1": {
+      "frame": {
+        "x": 1427,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "purple_ball_cracked_2": {
+      "frame": {
+        "x": 1491,
+        "y": 182,
+        "w": 61,
+        "h": 61
+      }
+    },
+    "red_ball": {
+      "frame": {
+        "x": 1554,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "red_ball_cracked_1": {
+      "frame": {
+        "x": 1618,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "red_ball_cracked_2": {
+      "frame": {
+        "x": 1682,
+        "y": 182,
+        "w": 61,
+        "h": 61
+      }
+    },
+    "yellow_ball": {
+      "frame": {
+        "x": 1745,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "yellow_ball_cracked_1": {
+      "frame": {
+        "x": 1809,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "yellow_ball_cracked_2": {
+      "frame": {
+        "x": 1873,
+        "y": 182,
+        "w": 62,
+        "h": 61
+      }
+    },
+    "star": {
+      "frame": {
+        "x": 1937,
+        "y": 182,
+        "w": 46,
+        "h": 44
+      }
+    }
+  },
+  "meta": {
+    "image": "atlas.png",
+    "size": {
+      "w": 2048,
+      "h": 2048
+    },
+    "scale": 1
+  }
+}

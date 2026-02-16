@@ -3,19 +3,36 @@ import type { BallColor, SpecialType } from '../components/BallData.js';
 import { CELL_SIZE, CELL_GAP, BOARD_X, BOARD_Y, ROWS, COLS } from '../grid/Grid.js';
 import { VisualConfig } from '../config/VisualConfig.js';
 import type { CellTypeDef } from '../config/CellTypes.js';
+import { SpriteConfig } from '../config/SpriteConfig.js';
+import { FrameAnimator, type AtlasData } from '@speedai/game-engine';
 
 export class BallRenderer {
-  /** Draw grid cell backgrounds. */
+  private atlas: AtlasData | null = null;
+
+  /** Set atlas for sprite rendering */
+  setAtlas(atlas: AtlasData | null): void {
+    this.atlas = atlas;
+  }
+
+  /** Draw grid cell backgrounds (using sprite or procedural). */
   drawGridCells(ctx: CanvasRenderingContext2D): void {
-    const cfg = VisualConfig.cell;
+    const cellFrame = this.getAtlasFrame(SpriteConfig.getUIFrame('cell'));
+
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const x = BOARD_X + c * (CELL_SIZE + CELL_GAP);
         const y = BOARD_Y + r * (CELL_SIZE + CELL_GAP);
-        ctx.fillStyle = `rgba(255,255,255,${cfg.backgroundAlpha})`;
-        ctx.beginPath();
-        ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, cfg.borderRadius);
-        ctx.fill();
+
+        if (cellFrame) {
+          this.drawAtlasFrame(ctx, cellFrame, x + CELL_SIZE / 2, y + CELL_SIZE / 2, CELL_SIZE, CELL_SIZE);
+        } else {
+          // Fallback: procedural
+          const cfg = VisualConfig.cell;
+          ctx.fillStyle = `rgba(255,255,255,${cfg.backgroundAlpha})`;
+          ctx.beginPath();
+          ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, cfg.borderRadius);
+          ctx.fill();
+        }
       }
     }
   }
@@ -32,18 +49,152 @@ export class BallRenderer {
     time: number = 0,
     row: number = 0,
   ): void {
+    if (!color) return;
+
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(cx, cy);
 
-    // Breathing animation (B6)
+    // Breathing animation
     const breatheCfg = VisualConfig.idleAnimations.breathe;
     const breatheScale = 1 + Math.sin(time * breatheCfg.speed + row * breatheCfg.rowStagger) * breatheCfg.scale;
-
     ctx.scale(scale * breatheScale, scale * breatheScale);
 
-    // Rainbow hue cycling (B6)
-    let displayColor = special !== 'none' ? SPECIAL_COLORS[special] : (color ? COLOR_HEX[color] : '#ffffff');
+    // Sprite rendering
+    if (this.atlas) {
+      if (special !== 'none') {
+        // Special ball: animated sprite
+        const frameIndex = FrameAnimator.getLoopingFrame(
+          time,
+          SpriteConfig.getSpecialFrameCount(),
+          SpriteConfig.getSpecialFPS()
+        );
+        const frameKey = SpriteConfig.getSpecialFrame(special, frameIndex);
+        const frame = this.getAtlasFrame(frameKey);
+        if (frame) {
+          this.drawAtlasFrame(ctx, frame, 0, 0, CELL_SIZE * 0.85, CELL_SIZE * 0.85);
+        } else {
+          this.drawProceduralBall(ctx, color, special, time);
+        }
+      } else {
+        // Normal ball sprite
+        const frameKey = SpriteConfig.getBallFrame(color);
+        const frame = this.getAtlasFrame(frameKey);
+        if (frame) {
+          this.drawAtlasFrame(ctx, frame, 0, 0, CELL_SIZE * 0.85, CELL_SIZE * 0.85);
+        } else {
+          this.drawProceduralBall(ctx, color, special, time);
+        }
+      }
+    } else {
+      // Fallback: procedural rendering
+      this.drawProceduralBall(ctx, color, special, time);
+    }
+
+    ctx.restore();
+  }
+
+  /** Draw selection highlight around a cell (using sprite or procedural). */
+  drawSelector(ctx: CanvasRenderingContext2D, cx: number, cy: number, pulse: number): void {
+    const ringFrame = this.getAtlasFrame(SpriteConfig.getUIFrame('ring'));
+
+    if (ringFrame) {
+      ctx.save();
+      const cfg = VisualConfig.selector;
+      ctx.globalAlpha = cfg.alphaBase + cfg.alphaOscillation * Math.sin(pulse * cfg.pulseSpeed);
+      this.drawAtlasFrame(ctx, ringFrame, cx, cy, CELL_SIZE + cfg.paddingFromCell * 2, CELL_SIZE + cfg.paddingFromCell * 2);
+      ctx.restore();
+    } else {
+      // Fallback: procedural
+      const cfg = VisualConfig.selector;
+      ctx.save();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = cfg.lineWidth;
+      ctx.globalAlpha = cfg.alphaBase + cfg.alphaOscillation * Math.sin(pulse * cfg.pulseSpeed);
+      const s = CELL_SIZE / 2 + cfg.paddingFromCell;
+      ctx.beginPath();
+      ctx.roundRect(cx - s, cy - s, s * 2, s * 2, cfg.borderRadius);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /** Draw obstacle visual at pixel center (cx, cy). */
+  drawObstacle(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    def: CellTypeDef,
+    currentHp: number,
+  ): void {
+    const frameKey = SpriteConfig.getObstacleFrame(def.id, currentHp);
+    const frame = this.getAtlasFrame(frameKey);
+
+    if (frame) {
+      // Sprite rendering
+      this.drawAtlasFrame(ctx, frame, cx, cy, CELL_SIZE, CELL_SIZE);
+    } else {
+      // Fallback: procedural rendering
+      this.drawProceduralObstacle(ctx, cx, cy, def, currentHp);
+    }
+  }
+
+  /** Draw destroy animation frame */
+  drawDestroyAnimation(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    color: BallColor,
+    elapsed: number,
+  ): void {
+    const crackedFrames = SpriteConfig.getBallCrackedFrames(color);
+    const fps = SpriteConfig.getDestroyFPS();
+    const frameIndex = FrameAnimator.getOneShotFrame(elapsed, crackedFrames.length, fps);
+    const frameKey = crackedFrames[frameIndex];
+    const frame = this.getAtlasFrame(frameKey);
+
+    if (frame) {
+      const progress = elapsed / SpriteConfig.getDestroyDuration();
+      const alpha = Math.max(0, 1 - progress * 0.5); // Fade out
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      this.drawAtlasFrame(ctx, frame, cx, cy, CELL_SIZE * 0.85, CELL_SIZE * 0.85);
+      ctx.restore();
+    }
+  }
+
+  // ── Private helpers ──
+
+  private getAtlasFrame(key: string): { x: number; y: number; width: number; height: number } | null {
+    if (!this.atlas || !key) return null;
+    return this.atlas.frames.get(key) ?? null;
+  }
+
+  private drawAtlasFrame(
+    ctx: CanvasRenderingContext2D,
+    frame: { x: number; y: number; width: number; height: number },
+    cx: number,
+    cy: number,
+    width: number,
+    height: number,
+  ): void {
+    if (!this.atlas) return;
+    ctx.drawImage(
+      this.atlas.image,
+      frame.x,
+      frame.y,
+      frame.width,
+      frame.height,
+      cx - width / 2,
+      cy - height / 2,
+      width,
+      height
+    );
+  }
+
+  private drawProceduralBall(ctx: CanvasRenderingContext2D, color: BallColor, special: SpecialType, time: number): void {
+    // Rainbow hue cycling
+    let displayColor = special !== 'none' ? SPECIAL_COLORS[special] : COLOR_HEX[color];
     if (special === 'rainbow') {
       const hueSpeed = VisualConfig.idleAnimations.rainbowHueSpeed;
       const hue = (time * hueSpeed) % 360;
@@ -51,7 +202,7 @@ export class BallRenderer {
     }
 
     const hex = displayColor;
-    const light = special !== 'none' ? lighten(displayColor, VisualConfig.ball.gradient.darkenAmount) : (color ? COLOR_LIGHT[color] : '#ffffff');
+    const light = special !== 'none' ? lighten(displayColor, VisualConfig.ball.gradient.darkenAmount) : COLOR_LIGHT[color];
     const r = VisualConfig.ball.radius;
 
     const gcfg = VisualConfig.ball.gradient;
@@ -76,32 +227,16 @@ export class BallRenderer {
     // Special overlays
     this.drawSpecialOverlay(ctx, special, r, hex);
 
-    // Sparkle on special balls (B6)
+    // Sparkle on special balls
     if (special !== 'none' && special !== 'rainbow') {
       this.drawSparkle(ctx, r, time);
     }
-
-    ctx.restore();
   }
 
-  /** Draw selection highlight around a cell. */
-  drawSelector(ctx: CanvasRenderingContext2D, cx: number, cy: number, pulse: number): void {
-    const cfg = VisualConfig.selector;
-    ctx.save();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = cfg.lineWidth;
-    ctx.globalAlpha = cfg.alphaBase + cfg.alphaOscillation * Math.sin(pulse * cfg.pulseSpeed);
-    const s = CELL_SIZE / 2 + cfg.paddingFromCell;
-    ctx.beginPath();
-    ctx.roundRect(cx - s, cy - s, s * 2, s * 2, cfg.borderRadius);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  /** Draw obstacle visual at pixel center (cx, cy). Reads all style from def. */
-  drawObstacle(
+  private drawProceduralObstacle(
     ctx: CanvasRenderingContext2D,
-    cx: number, cy: number,
+    cx: number,
+    cy: number,
     def: CellTypeDef,
     currentHp: number,
   ): void {
@@ -111,7 +246,6 @@ export class BallRenderer {
     ctx.save();
 
     if (v.mode === 'solid') {
-      // Solid obstacle — draw filled rect
       ctx.fillStyle = v.fillColor;
       ctx.beginPath();
       ctx.roundRect(cx - half, cy - half, CELL_SIZE, CELL_SIZE, v.borderRadius);
@@ -123,7 +257,6 @@ export class BallRenderer {
         ctx.stroke();
       }
     } else {
-      // Overlay — drawn on top of ball (translucent layer)
       ctx.fillStyle = v.fillColor;
       ctx.beginPath();
       ctx.roundRect(cx - half, cy - half, CELL_SIZE, CELL_SIZE, v.borderRadius);
@@ -146,7 +279,6 @@ export class BallRenderer {
       ctx.lineWidth = 1.5;
       ctx.lineCap = 'round';
 
-      // Draw procedural crack lines
       ctx.beginPath();
       ctx.moveTo(cx - half * 0.3, cy - half * 0.5);
       ctx.lineTo(cx + half * 0.1, cy - half * 0.1);
@@ -198,7 +330,6 @@ export class BallRenderer {
         ctx.beginPath();
         ctx.arc(0, 0, r * bcfg.ringRadius, 0, Math.PI * 2);
         ctx.stroke();
-        // Inner cross
         ctx.lineWidth = bcfg.crossLineWidth;
         ctx.beginPath();
         ctx.moveTo(-r * bcfg.crossSize, 0); ctx.lineTo(r * bcfg.crossSize, 0);
@@ -208,7 +339,6 @@ export class BallRenderer {
       }
       case 'rainbow': {
         const rcfg = cfg.rainbow;
-        // Rainbow shimmer ring
         for (let i = 0; i < rcfg.colors.length; i++) {
           const angle = (i / rcfg.colors.length) * Math.PI * 2 - Math.PI / 2;
           const nextAngle = ((i + 1) / rcfg.colors.length) * Math.PI * 2 - Math.PI / 2;
@@ -227,7 +357,6 @@ export class BallRenderer {
     const cfg = VisualConfig.idleAnimations.sparkle;
     const cycle = (time * 1000) % cfg.interval;
 
-    // Only show sparkle during the duration window
     if (cycle > cfg.duration) return;
 
     const progress = cycle / cfg.duration;
@@ -239,7 +368,6 @@ export class BallRenderer {
     ctx.shadowBlur = 8;
     ctx.shadowColor = '#ffffff';
 
-    // Draw sparkle as a small circle
     ctx.beginPath();
     ctx.arc(0, 0, cfg.radius * (0.3 + progress * 0.2), 0, Math.PI * 2);
     ctx.fill();

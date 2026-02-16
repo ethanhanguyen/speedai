@@ -26,6 +26,7 @@ export interface StateMachineContext {
   levelConfig: { colors: BallColor[]; targetScore: number };
   columnHistory: BallColor[][];
   objectiveTracker: ObjectiveTracker;
+  time: number;
   spawnBallEntity: (r: number, c: number, color: BallColor, special: SpecialType, spawnY?: number) => number;
   destroyEntity: (eid: number) => void;
   onLevelComplete: () => void;
@@ -280,7 +281,9 @@ export class GameplayStateMachine {
             particleSize: VisualConfig.particles.match.size,
             colors: cell?.color ? [COLOR_HEX[cell.color]] : undefined,
           });
-          ctx.animManager.animateClear(eid, delay);
+          if (cell?.color) {
+            ctx.animManager.animateClear(eid, cell.color, ctx.time, delay);
+          }
         }
         delay += AnimationConfig.clear.delayIncrement;
       }
@@ -321,6 +324,12 @@ export class GameplayStateMachine {
       // Damage obstacles adjacent to cleared cells
       this.damageAdjacentObstacles(toClear, ctx);
 
+      // Check win condition before refill
+      if (ctx.objectiveTracker.allComplete()) {
+        ctx.onLevelComplete();
+        return;
+      }
+
       this.state = 'FALLING';
       this.applyGravityAndRefill(ctx);
     });
@@ -336,7 +345,6 @@ export class GameplayStateMachine {
     const normalC = cell1?.special !== 'none' ? c2 : c1;
 
     const alreadyCleared = new Set<string>();
-    alreadyCleared.add(`${normalR},${normalC}`);
 
     const normalCell = ctx.grid.getCell(normalR, normalC);
     const targetColor = normalCell?.color || undefined;
@@ -348,10 +356,7 @@ export class GameplayStateMachine {
     );
 
     const normalKey = `${normalR},${normalC}`;
-    const normalEid = ctx.entityMap[normalR][normalC];
-    if (normalEid !== null) {
-      ctx.animManager.animateClear(normalEid);
-    }
+    allToClear.delete(normalKey); // Keep normal ball on board
 
     const points = allToClear.size * GameplayConfig.score.specialActivationPoints * this.cascadeMultiplier;
     this.score += points;
@@ -419,6 +424,12 @@ export class GameplayStateMachine {
 
           // Also damage obstacles adjacent to all special-cleared cells
           this.damageAdjacentObstacles(allToClear, ctx);
+
+          // Check win condition before refill
+          if (ctx.objectiveTracker.allComplete()) {
+            ctx.onLevelComplete();
+            return;
+          }
 
           this.state = 'FALLING';
           this.applyGravityAndRefill(ctx);

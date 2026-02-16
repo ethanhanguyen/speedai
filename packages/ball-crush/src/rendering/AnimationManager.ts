@@ -3,7 +3,8 @@ import type { EntityId } from '@speedai/game-engine';
 import { Easing } from '@speedai/game-engine';
 import { LayoutConfig } from '../config/LayoutConfig.js';
 import { AnimationConfig } from '../config/AnimationConfig.js';
-import type { SpecialType } from '../components/BallData.js';
+import type { BallColor, SpecialType } from '../components/BallData.js';
+import { SpriteConfig } from '../config/SpriteConfig.js';
 
 export interface SwapAnim {
   entity1: EntityId;
@@ -33,6 +34,7 @@ export class AnimationManager {
   private gravity: number;
   private pendingCount = 0;
   private onAllComplete: AnimCallback | null = null;
+  private destroyAnims = new Map<EntityId, { color: BallColor; startTime: number }>();
 
   constructor(tweenSystem: TweenSystem, gravity: number) {
     this.tweenSystem = tweenSystem;
@@ -66,6 +68,33 @@ export class AnimationManager {
     }
   }
 
+  /** Queue a destroy animation for an entity. */
+  queueDestroy(entityId: EntityId, color: BallColor, startTime: number): void {
+    this.destroyAnims.set(entityId, { color, startTime });
+  }
+
+  /** Get active destroy animation for entity (lazy cleanup). Returns null if expired/missing. */
+  getDestroyAnim(entityId: EntityId, currentTime: number): { color: BallColor; elapsed: number } | null {
+    const anim = this.destroyAnims.get(entityId);
+    if (!anim) return null;
+
+    const elapsed = currentTime - anim.startTime;
+    const duration = SpriteConfig.getDestroyDuration();
+
+    if (elapsed >= duration) {
+      // Expired - lazy cleanup
+      this.destroyAnims.delete(entityId);
+      return null;
+    }
+
+    return { color: anim.color, elapsed };
+  }
+
+  /** Remove destroy animation (called when entity destroyed). */
+  removeDestroy(entityId: EntityId): void {
+    this.destroyAnims.delete(entityId);
+  }
+
   /** Animate swapping two entities' positions. */
   animateSwap(
     e1: EntityId, x1: number, y1: number,
@@ -90,9 +119,13 @@ export class AnimationManager {
     });
   }
 
-  /** Animate breaking: wobble then scale down + fade out. */
-  animateClear(entityId: EntityId, delay: number = 0): void {
+  /** Animate breaking: wobble then scale down + fade out. Also queues destroy animation. */
+  animateClear(entityId: EntityId, color: BallColor, currentTime: number, delay: number = 0): void {
     this.trackStart();
+
+    // Queue destroy animation to show cracked frames
+    const startTime = currentTime + delay;
+    this.queueDestroy(entityId, color, startTime);
 
     // Quick wobble/shake before breaking
     this.tweenSystem.tweenEntity(entityId, 'Sprite', {
@@ -107,7 +140,10 @@ export class AnimationManager {
           from: { scaleX: 1.2, scaleY: 0.8, alpha: 1 },
           duration: AnimationConfig.clear.shrinkDuration,
           easing: Easing.easeInQuad,
-          onComplete: () => this.trackEnd(),
+          onComplete: () => {
+            this.removeDestroy(entityId);
+            this.trackEnd();
+          },
         });
       },
     });

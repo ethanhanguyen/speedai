@@ -149,3 +149,4 @@ export type { GridRendererConfig } from './grid/GridRenderer.js';
 export { WeightedPicker } from './utils/WeightedPicker.js';
 export { ObjectiveTracker } from './utils/ObjectiveTracker.js';
 export type { ObjectiveDef, ObjectiveState } from './utils/ObjectiveTracker.js';
+export { FrameAnimator } from './utils/FrameAnimator.js';

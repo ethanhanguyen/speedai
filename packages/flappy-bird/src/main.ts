@@ -49,10 +49,10 @@ async function main() {
   await assetManager.loadImage('ground', '/src/assets/sprites/ground.png');
   await assetManager.loadImage('bg', '/src/assets/sprites/bg.png');
 
-  // Process sprites: remove white backgrounds and downscale to display size
-  await assetManager.processImage('bird', { maxWidth: 34, maxHeight: 24, removeBg: {} });
-  await assetManager.processImage('pipe', { maxWidth: 52, maxHeight: 320, removeBg: {} });
-  await assetManager.processImage('ground', { maxWidth: 336, maxHeight: 112, removeBg: {} });
+  // Process sprites: downscale to display size (no background removal)
+  await assetManager.processImage('bird', { maxWidth: 34, maxHeight: 24 });
+  await assetManager.processImage('pipe', { maxWidth: 52, maxHeight: 320 });
+  await assetManager.processImage('ground', { maxWidth: 336, maxHeight: 112 });
   await assetManager.processImage('bg', { maxWidth: 375, maxHeight: 667 });
 
   // Add systems

@@ -5,6 +5,7 @@ import {
   UnifiedInput,
   SceneManager,
   TweenSystem,
+  AssetManager,
 } from '@speedai/game-engine';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameplayScene } from './scenes/GameplayScene.js';
@@ -14,6 +15,26 @@ import { GameOverScene } from './scenes/GameOverScene.js';
 async function main() {
   const canvas = document.querySelector('#game') as HTMLCanvasElement;
   if (!canvas) throw new Error('Canvas element #game not found');
+
+  // Load assets
+  const assetManager = new AssetManager();
+  assetManager.on('progress', (...args: unknown[]) => {
+    const loaded = args[0] as number;
+    const total = args[1] as number;
+    console.log(`Loading assets: ${loaded}/${total}`);
+  });
+
+  await assetManager.loadAll([
+    { key: 'atlas', type: 'atlas', src: '/atlas.json' },
+  ]);
+
+  // No processing needed - sprites are already transparent
+  // await assetManager.processAtlas('atlas', {
+  //   removeBg: { color: [255, 255, 255], tolerance: 30 }
+  // });
+
+  const atlas = assetManager.getAtlas('atlas');
+  console.log('✓ Atlas loaded:', atlas?.frames.size, 'frames');
 
   const physics = new SimplePhysics();
   physics.gravity = { x: 0, y: 1200 };
@@ -41,7 +62,7 @@ async function main() {
   // Scenes
   const sceneManager = new SceneManager(engine.entities);
   const menuScene = new MenuScene();
-  const gameplayScene = new GameplayScene(tweenSystem);
+  const gameplayScene = new GameplayScene(tweenSystem, atlas ?? null);
   const levelCompleteScene = new LevelCompleteScene();
   const gameOverScene = new GameOverScene();
 

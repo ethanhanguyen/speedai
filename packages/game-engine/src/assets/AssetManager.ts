@@ -216,6 +216,77 @@ export class AssetManager extends EventEmitter {
     return this.atlases.get(key);
   }
 
+  /**
+   * Process an atlas image: remove background color and/or downscale.
+   * Call after loadAtlas().
+   */
+  async processAtlas(key: string, opts: ImageProcessOptions): Promise<void> {
+    const atlas = this.atlases.get(key);
+    if (!atlas) return;
+
+    let source: CanvasImageSource = atlas.image;
+
+    // Step 1: Background removal
+    if (opts.removeBg) {
+      const bgColor = opts.removeBg.color ?? [255, 255, 255];
+      const tolerance = opts.removeBg.tolerance ?? 30;
+      const tolSq = tolerance * tolerance;
+
+      const img = atlas.image;
+      const sw = (img as HTMLImageElement).naturalWidth
+        ?? (img as ImageBitmap).width
+        ?? (img as HTMLCanvasElement).width;
+      const sh = (img as HTMLImageElement).naturalHeight
+        ?? (img as ImageBitmap).height
+        ?? (img as HTMLCanvasElement).height;
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = sw;
+      offscreen.height = sh;
+      const ctx = offscreen.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, sw, sh);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const dr = data[i] - bgColor[0];
+        const dg = data[i + 1] - bgColor[1];
+        const db = data[i + 2] - bgColor[2];
+        if (dr * dr + dg * dg + db * db <= tolSq) {
+          data[i + 3] = 0;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      source = offscreen;
+    }
+
+    // Step 2: Downscale (if needed)
+    if (opts.maxWidth != null && opts.maxHeight != null) {
+      const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+      const tw = Math.ceil(opts.maxWidth * dpr);
+      const th = Math.ceil(opts.maxHeight * dpr);
+
+      const sw = (source as HTMLImageElement).naturalWidth
+        ?? (source as ImageBitmap).width
+        ?? (source as HTMLCanvasElement).width;
+      const sh = (source as HTMLImageElement).naturalHeight
+        ?? (source as ImageBitmap).height
+        ?? (source as HTMLCanvasElement).height;
+
+      if (sw > tw || sh > th) {
+        source = await createImageBitmap(source, {
+          resizeWidth: tw,
+          resizeHeight: th,
+          resizeQuality: 'high',
+        });
+      }
+    } else if (opts.removeBg && !opts.maxWidth && !opts.maxHeight) {
+      source = await createImageBitmap(source);
+    }
+
+    this.atlases.set(key, { ...atlas, image: source });
+  }
+
   dispose(): void {
     this.images.clear();
     this.audio.clear();

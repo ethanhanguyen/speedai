@@ -11,6 +11,7 @@ import {
   ObjectiveTracker,
   type EntityId,
   type TweenSystem,
+  type AtlasData,
 } from '@speedai/game-engine';
 import { Grid, ROWS, COLS, BOARD_Y, CELL_SIZE, BALL_SPAWN_OFFSET } from '../grid/Grid.js';
 import { getLevelConfig, type LevelDef } from '../grid/LevelConfig.js';
@@ -71,9 +72,13 @@ export class GameplayScene extends Scene {
   // Time tracking (for B5, B6 animations)
   private time = 0;
 
-  constructor(tweenSystem: TweenSystem) {
+  // Game end state
+  private gameEnded = false;
+
+  constructor(tweenSystem: TweenSystem, atlas: AtlasData | null = null) {
     super('Gameplay');
     this.tweenSystem = tweenSystem;
+    this.ballRenderer.setAtlas(atlas);
   }
 
   setLevel(level: number): void {
@@ -86,6 +91,7 @@ export class GameplayScene extends Scene {
 
   init(): void {
     this.animManager = new AnimationManager(this.tweenSystem, 800);
+    this.gameEnded = false;
 
     // Clean slate
     const allEntities = this.entityManager.query();
@@ -370,9 +376,11 @@ export class GameplayScene extends Scene {
     this.shake.update(dt);
     this.flash.update(dt);
     this.particles.update(dt);
-    this.toast.update(dt);
-    this.specialFx.update(dt);
-    this.floatingText.update(dt);
+    if (!this.gameEnded) {
+      this.toast.update(dt);
+      this.specialFx.update(dt);
+      this.floatingText.update(dt);
+    }
     this.slowMo.update(dt);
 
     // Apply slow motion to engine time scale
@@ -478,12 +486,15 @@ export class GameplayScene extends Scene {
       levelConfig: this.levelConfig,
       columnHistory: this.columnHistory,
       objectiveTracker: this.objectiveTracker,
+      time: this.time,
       spawnBallEntity: this.spawnBallEntity,
       destroyEntity: (eid: number) => this.destroyEntity(eid),
       onLevelComplete: () => {
+        this.gameEnded = true;
         this.emit('levelComplete', this.stateMachine.score + this.totalScore, this.level, this.stateMachine.movesLeft);
       },
       onGameOver: () => {
+        this.gameEnded = true;
         this.emit('gameOver', this.stateMachine.score + this.totalScore, this.level);
       },
       onReshuffle: () => {
@@ -513,6 +524,7 @@ export class GameplayScene extends Scene {
       grid: this.grid,
       entityMap: this.entityMap,
       entityManager: this.entityManager,
+      animManager: this.animManager,
       ballRenderer: this.ballRenderer,
       specialFx: this.specialFx,
       floatingText: this.floatingText,
@@ -535,6 +547,7 @@ export class GameplayScene extends Scene {
       time: this.time,
       objectives: this.objectiveTracker.getAll(),
       showObjectivesPanel: !!(this.levelConfig.objectives && this.levelConfig.objectives.length > 0),
+      gameEnded: this.gameEnded,
     };
 
     this.renderer.render(ctx, canvas, renderContext);

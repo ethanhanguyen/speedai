@@ -15,6 +15,7 @@ export interface RenderContext {
   grid: Grid;
   entityMap: (number | null)[][];
   entityManager: EntityManager;
+  animManager: import('../rendering/AnimationManager.js').AnimationManager;
   ballRenderer: BallRenderer;
   specialFx: SpecialEffectRenderer;
   floatingText: FloatingTextManager;
@@ -37,6 +38,7 @@ export interface RenderContext {
   time: number;
   objectives: ObjectiveState[];
   showObjectivesPanel: boolean;
+  gameEnded: boolean;
 }
 
 export class GameplayRenderer {
@@ -100,9 +102,13 @@ export class GameplayRenderer {
 
     // Effects overlay
     context.particles.draw(ctx);
-    context.floatingText.draw(ctx);
+    if (!context.gameEnded) {
+      context.floatingText.draw(ctx);
+    }
     context.flash.draw(ctx, 430, 750);
-    context.toast.draw(ctx, 430, 750);
+    if (!context.gameEnded) {
+      context.toast.draw(ctx, 430, 750);
+    }
   }
 
   private renderUI(ctx: CanvasRenderingContext2D, context: RenderContext): void {
@@ -212,23 +218,38 @@ export class GameplayRenderer {
         }
 
         const pos = context.entityManager.getComponent(eid, 'Position') as { x: number; y: number } | undefined;
-        const sprite = context.entityManager.getComponent(eid, 'Sprite') as {
-          scaleX: number; scaleY: number; alpha: number;
-        } | undefined;
+        if (!pos) continue;
 
-        if (!pos || !sprite) continue;
+        // Check for active destroy animation (O(1) lookup, lazy cleanup)
+        const destroyAnim = context.animManager.getDestroyAnim(eid, context.time);
+        if (destroyAnim) {
+          // Render cracked frame animation
+          context.ballRenderer.drawDestroyAnimation(
+            ctx,
+            pos.x,
+            pos.y,
+            destroyAnim.color,
+            destroyAnim.elapsed,
+          );
+        } else {
+          // Normal ball rendering
+          const sprite = context.entityManager.getComponent(eid, 'Sprite') as {
+            scaleX: number; scaleY: number; alpha: number;
+          } | undefined;
+          if (!sprite) continue;
 
-        context.ballRenderer.drawBall(
-          ctx,
-          pos.x,
-          pos.y,
-          cell.color,
-          cell.special,
-          sprite.scaleX,
-          sprite.alpha,
-          context.time,
-          r,
-        );
+          context.ballRenderer.drawBall(
+            ctx,
+            pos.x,
+            pos.y,
+            cell.color,
+            cell.special,
+            sprite.scaleX,
+            sprite.alpha,
+            context.time,
+            r,
+          );
+        }
       }
     }
   }
