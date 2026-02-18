@@ -4,9 +4,11 @@
 - `packages/game-engine/` — `@speedai/game-engine`: ECS game engine (Canvas 2D, zero-dep)
 - `packages/flappy-bird/` — `@speedai/flappy-bird`: Flappy Bird implementation
 - `packages/ball-crush/` — `@speedai/ball-crush`: Ball Crush (match-3) implementation
+- `packages/battle-tank/` — `@speedai/battle-tank`: Top-down tank game (tilemap, composite sprites)
 - `packages/demo/` — `@speedai/demo`: Arcade landing page (game tiles)
 - `GAME_SPEC.template.md` — Template for specifying new games
 - `GAME_SPEC_flappybird.md` — Flappy Bird game specification
+- `plan_phases.md` — Battle Tank phased implementation plan
 
 ## Commands (run from repo root)
 **Game Engine:**
@@ -25,6 +27,12 @@
 - Build: `npm run build -w packages/ball-crush`
 - Preview: `npm run preview -w packages/ball-crush`
 - Typecheck: `npm run typecheck -w packages/ball-crush`
+
+**Battle Tank:**
+- Dev: `npm run dev -w packages/battle-tank`
+- Build: `npm run build -w packages/battle-tank`
+- Preview: `npm run preview -w packages/battle-tank`
+- Typecheck: `npm run typecheck -w packages/battle-tank`
 
 **Demo (Arcade Landing Page):**
 - Dev: `npm run dev -w packages/demo`
