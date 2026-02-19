@@ -30,56 +30,65 @@ src/
 │   ├── BuffConfig.ts    BuffStat, TimedBuffDef (+ label field), TIMED_BUFF_DEFS (9 timed effects), BUFF_HUD (icon size/blink/vignette/aura config), BUFF_AURA_COLORS, BUFF_NOTIFY
 │   ├── GameStateTypes.ts GameHUDState (hp/coins/kills/wave/chargeRatio?/weaponName?/activeBombType?/activeEffects?), GameOverStats, WaveState
 │   ├── PartRegistry.ts  HullDef/EngineDef/TrackDef/ArmorPartDef/LoadoutParts/RadarStats; 8 hulls, 4 engines, 4 tracks, 4 armors; assembleLoadout() → TankDef; computeRadarStats(); P/W ratio
-│   └── GarageConfig.ts  GARAGE_LAYOUT pixel rects, GARAGE_STYLE colors/fonts, SLOT_CATEGORIES, FLAVOR_TEXT
+│   ├── GarageConfig.ts  GARAGE_LAYOUT pixel rects, GARAGE_STYLE colors/fonts, SLOT_CATEGORIES, FLAVOR_TEXT
+│   ├── MapRegistry.ts   MapEntry, MAP_REGISTRY (2 maps), getSelectedMapId/setSelectedMapId/getSelectedMap
+│   ├── MapSelectConfig.ts Card layout, thumbnail cellPx, tileColors/objectColors (shared with MiniMap), spawnColors
+│   ├── MapGenDefaults.ts SURVIVAL_GEN_CONFIG + ARENA_GEN_CONFIG presets; DecorScatterConfig + DECOR_SCATTER_CONFIG (border/byGround/nearWall/hedgehog)
+│   └── AirUnitConfig.ts  [Phase 6] AirUnitDef (3 units); bladeRPM, altitude, shadowAlpha, shadowXFactor, shadowYFactor, bombDropIntervalMs, flythroughSpeedPx, waveThresholds
 ├── components/
 │   ├── Projectile.ts    ProjectileComponent {weaponDef, ownerId, elapsed, lifetimeOverride?, bouncesRemaining, piercesRemaining, hitEntities, splashTarget?}
 │   ├── Weapon.ts        WeaponComponent {def, cooldownRemaining, chargeElapsed, isCharging, shotCount, switchPhase, switchElapsedMs, pendingDef}
-│   ├── AI.ts            AIComponent {state, role, resolved profile fields, strafeSign, squadLeadId?, formationDx, formationDy}
+│   ├── AI.ts            AIComponent {state, role, movementMode, resolved profile fields, strafeSign, squadLeadId?, formationDx, formationDy}
+│   ├── AirUnit.ts       [Phase 6] AirUnitComponent {altitude, bladeAngle, movementMode: 'hover'|'flythrough'}
 │   ├── InfantryParts.ts InfantryPartsComponent {soldierVariant, animState, facingAngle, speed, maxSpeed, collisionRadius, muzzleOffsetPx, hitFlash*, shotFlash*}
 │   ├── ArmorKit.ts      ArmorKitComponent {kitId: ArmorKitId}
 │   ├── Beam.ts          BeamComponent (laser VFX, held by HitscanSystem not EntityManager)
 │   └── Bomb.ts          BombComponent {type, state: BombState, elapsedMs, ownerId, detonated}
 ├── tilemap/
-│   ├── types.ts         TileId (8: grass/dirt/stone/mud/sand/ice/water/puddle), ObjectId, TileCell, MapData (incl enemySpawns)
-│   ├── TileRegistry.ts  TILE_DEFS (8 tiles: spriteKey + optional tint overlay), OBJECT_DEFS, CHAR_MAP (P=player, S=enemy spawn)
-│   ├── TilemapLoader.ts parseTilemap() → GridModel<TileCell> + MapData
-│   └── TilemapRenderer.ts drawTilemap() — camera-culled; ground + 8-dir sprite-blend transitions + object layers
+│   ├── types.ts         TileId (8), ObjectId (incl HEDGEHOG), DecorId (20), TileCell {ground, object, decor?}, MapData
+│   ├── TileRegistry.ts  TILE_DEFS, OBJECT_DEFS (ObjectDef.spriteVariants? for position-hash variant pick), DECOR_DEFS (DecorDef: spriteKey+scale? only — no gameplay flags), CHAR_MAP (H=hedgehog)
+│   ├── TilemapLoader.ts parseTilemap() → GridModel<TileCell> + MapData (decor=undefined on all cells)
+│   └── TilemapRenderer.ts drawTilemap() — 3 passes: ground+tint → decor (centered+scaled) → objects (resolveObjectSprite via position hash)
 ├── tank/
 │   ├── TankParts.ts         TankPartsComponent — recoilOffset/recoilVelocity (spring-damper) + hitFlash*
 │   ├── TankAssembler.ts     createTank() → Position+Velocity+TankParts+Weapon+Health+Tag+(ArmorKit)
 │   ├── TankRenderer.ts      drawTanks() — tracks → hull → per-role tint → turret (recoilOffset) → hit flash
 │   ├── TankUtils.ts         getTurretTip() — muzzle world position
 │   ├── InfantryAssembler.ts createInfantry() → Position+Velocity+InfantryParts+Weapon+Health+Tag
-│   └── InfantryRenderer.ts  InfantryRenderer class — sprite sheet clipping, hit flash, DeathAnim queue
+│   ├── InfantryRenderer.ts  InfantryRenderer class — sprite sheet clipping, hit flash, DeathAnim queue
+│   ├── AirUnitAssembler.ts  [Phase 6] createAirUnit() → Position+Velocity+AirUnit+Health+Weapon+Tag('air')
+│   └── AirUnitRenderer.ts   [Phase 6] Shadow (offset body, low alpha) → body → blade (rotated bladeAngle)
 ├── ai/
 │   ├── FlowField.ts     Weighted Dijkstra (binary min-heap) → direction grid, recompute-on-move; optional TerrainCosts
 │   ├── AISystem.ts      updateAI() — dual loop (tanks + infantry); FSM shared; squad formation steering in CHASE; flow-field fallback when lead dies
+│   ├── AirAISystem.ts   [Phase 6] Helicopter FSM (PATROL/HOVER/ATTACK/RETREAT) + plane FLYTHROUGH; direct-vector movement, no flow field
 │   └── resolveAIProfile.ts  Pure fn: base × difficulty × wave ± variance → resolved AIBehaviorProfile
 ├── combat/
 │   ├── WeaponSystem.ts  updateWeapons() + tryFireInfantry() — all fire modes; weapon switch 1-8; bombs; emits weapon:charging per-frame during charge; kicks recoil on fire
 │   ├── ProjectileSystem.ts updateProjectiles() — move, bounce reflection, TTL/tile hit → EventBus
 │   ├── ProjectileRenderer.ts Class: update() trail emission; draw() — per-weapon tracer+glow, loading ring, railgun charge glow, trajectory preview, howitzer indicator, laser beams, bombs
-│   ├── EntityCollisionSystem.ts checkEntityCollisions() — pierce-aware circle test; marks hitEntities
+│   ├── EntityCollisionSystem.ts checkEntityCollisions() — pierce-aware circle test; marks hitEntities; [Phase 6] checks projectile targetLayer vs entity tag
 │   ├── EntityDamageSystem.ts initEntityDamageListeners(em, eventBus, playerId?, buffSystem?) — armor multiplier + buff modifiers (damage/incomingDamage) + universal hitStaggerPx; splash stagger radially
 │   ├── DamageSystem.ts  initDamageListeners() — tile HP → tile:damaged/destroyed events
 │   ├── TileHPTracker.ts Parallel HP map for destructible tiles
 │   ├── SplashSystem.ts  Class: howitzer landing indicators + splash:detonated → AoE entity damage
 │   ├── HitscanSystem.ts Class: raycast (4px steps) → ActiveBeam list → drawBeams() multi-layer
-│   ├── BombSystem.ts    Class: placeBomb(), state machine (arming→armed→detonating), chain detonation, clearAll()
+│   ├── BombSystem.ts    Class: placeBomb(em, ownerId, x, y, type, sourceFaction), state machine (arming→armed→detonating), chain detonation, clearAll()
 │   └── TrajectoryPreviewSystem.ts Pure fn drawTrajectoryPreview() — simulated bounce path dots
 ├── vfx/
 │   ├── VFXManager.ts    Muzzle flash, impact (per damageType particles), explosion, turret pop-off, damage numbers, coin pickup, buff/debuff pickup float labels; setPlayerId() for hit flash + player camera shake; weapon:charging → buildup tremor
 │   └── DamageStateRenderer.ts Three-tier: hull tint ≤50% HP; light smoke ≤25%; thick black smoke + fire sparks ≤10%
 ├── hud/
-│   └── HudRenderer.ts   HP bar, wave indicator, kill count, coin count, wave banner, active buff/debuff icons (32px, radial cooldown, expiry blink), screen-edge vignette
+│   ├── HudRenderer.ts   HP bar, wave indicator, kill count, coin count, wave banner, active buff/debuff icons (32px, radial cooldown, expiry blink), screen-edge vignette
+│   └── MiniMapRenderer.ts MiniMapRenderer class — init() pre-renders OffscreenCanvas (1px/cell); draw() blits top-right + player/enemy dots
 ├── systems/
 │   ├── TankMovementSystem.ts WASD → hull rotation + speed (with BuffSystem speed/turnRate + terrain cost modifiers); mouse → turret angle; updateTankVFXState() — recoil spring-damper + hit flash timer for all tanks
 │   ├── LoadoutSystem.ts     Active loadout (module-level) + LocalStorage save/load (3 slots)
 │   ├── InfantryMovementSystem.ts updateInfantryVFXState() — anim state machine, frame advance, timer ticks; re-exports getDamageSpeedFactor
-│   ├── TileCollisionSystem.ts Separate-axis tile collision (circle vs grid)
+│   ├── TileCollisionSystem.ts Separate-axis tile collision (circle vs grid); [Phase 6] early-exit for tag 'air'
 │   ├── DropSystem.ts    World drops: coins + 13 item types; weighted bonus pools; magnet pull (buffable); spawn pop animation; TTL despawn; fires item:picked
 │   ├── BuffSystem.ts    Player-only timed effects tracker; applyEffect/getModifier/getActiveEffects; consumed by TankMovement/Weapon/EntityDamage/Drop/HUD systems
-│   └── WaveSpawner.ts   Wave lifecycle, round-robin spawns, jitter, resolveAIProfile; squad blocks: tank spawns first, infantry patched with real squadLeadId
+│   └── WaveSpawner.ts   Wave lifecycle, round-robin spawns, jitter, resolveAIProfile; squad blocks: tank spawns first, infantry patched with real squadLeadId; [Phase 6] AirWaveEvent dispatch
 ├── garage/
 │   ├── RadarChart.ts     6-axis radar chart (SPD/ACC/FPW/ROF/ARM/HND)
 │   ├── WeightBar.ts      Weight bar + P/W ratio display, overload pulse
@@ -87,21 +96,32 @@ src/
 │   └── TankPreview.ts    Rotatable tank preview from loadout parts
 ├── scenes/
 │   ├── MenuScene.ts     Title + difficulty selector → Garage
-│   ├── GarageScene.ts   Loadout customization: preview, part cards, radar, save/load, deploy
-│   ├── GameplayScene.ts Orchestrates all systems, AI, waves, SlowMotion; uses loadout
+│   ├── GarageScene.ts   Loadout customization: preview, part cards, radar, save/load, deploy → MapSelect
+│   ├── MapSelectScene.ts Map card grid (thumbnails, labels), BACK→Garage, DEPLOY→Gameplay
+│   ├── GameplayScene.ts Orchestrates all systems, AI, waves, SlowMotion; reads getSelectedMap().ascii; MiniMap
 │   └── GameOverScene.ts Stats display + Play Again / Garage / Menu buttons
 └── maps/
-    └── survival_01.ts   24x18 ASCII map with 4 enemy spawn points
+    ├── survival_01.ts   24x18 handcrafted ASCII map (4 spawns, symmetric)
+    ├── arena_01.ts      24x18 desert arena map (generated seed 7, hand-tuned)
+    ├── MapGenerator.ts  generateMap(config, seed?) — seeded PRNG, symmetry, BFS connectivity; applyDecorPasses(grid, meta, config, seed) — 3 post-parse passes
+    └── survival_01.ts, arena_01.ts — handcrafted/generated ASCII maps; decor applied at load time via applyDecorPasses
 ```
 
 ## Key Patterns
 
-- **No magic numbers**: All constants in `config/`. Tile behavior in `TileRegistry.ts`. Weapon stats in `WeaponConfig.ts`. AI params in `AIConfig.ts`. Wave table in `WaveConfig.ts`. VFX params in `CombatConfig.ts`. Armor multipliers in `ArmorConfig.ts`. Bomb params in `BombConfig.ts`. Drop items + weighted tables + physics in `DropConfig.ts`. Timed buff/debuff defs in `BuffConfig.ts`.
+- **Three-layer tilemap**: `TileCell = { ground: TileId; object: ObjectId; decor?: DecorId }`. Ground=terrain cost/walkability. Object=collision/HP/projectile-block (with `spriteVariants?` for visual variety, position-hash selected). Decor=render-only (no gameplay flags on `DecorDef`). Absence of decor is `undefined`, not a sentinel enum value. Render order: ground+tint → decor → objects.
+- **applyDecorPasses**: Called in `GameplayScene.init()` after `parseTilemap()` for every map. Three passes: border decor, contextual ground/wall-adjacency scatter, hedgehog object placement. Config in `DECOR_SCATTER_CONFIG`. Seed from `MapEntry.decorSeed`.
+- **No magic numbers**: All constants in `config/`. Tile behavior in `TileRegistry.ts`. Weapon stats in `WeaponConfig.ts`. AI params in `AIConfig.ts`. Wave table in `WaveConfig.ts`. VFX params in `CombatConfig.ts`. Armor multipliers in `ArmorConfig.ts`. Bomb params in `BombConfig.ts`. Drop items + weighted tables + physics in `DropConfig.ts`. Timed buff/debuff defs in `BuffConfig.ts`. Map registry + selection in `MapRegistry.ts`. Map generator presets in `MapGenDefaults.ts`. Map select UI + shared tile colors in `MapSelectConfig.ts`. Mini-map display in `MAP_CONFIG.MINI_MAP`. Air unit stats in `AirUnitConfig.ts`.
+- **[Phase 6] Air unit layer**: Tag `'air'` is the universal system guard. `TileCollisionSystem` early-exits on `'air'`. `EntityCollisionSystem` checks `WeaponDef.targetLayer ('ground'|'air'|'all')` before hit. `FlowField`/`AISystem` skip air entities; `AirAISystem` uses direct-vector movement. Render order: shadow (body sprite, low alpha, offset by altitude×factors) → body (`DEPTH.AIR`) → blade (rotated by `bladeAngle`, incremented `bladeRPM × dt`). All numeric values in `AirUnitConfig.ts`.
+- **[Phase 6] Enemy bombs**: `BombSystem.placeBomb()` extended with `sourceFaction: 'player'|'enemy'`. Enemy proximity bombs reuse existing player-position proximity scan. Bombing plane drops bombs via this path; otherwise uses identical arm/fuse state machine.
 - **Event-driven pipeline**: `EventBus` decouples collision → damage → VFX → game state. Events: `weapon:fired`, `weapon:charging`, `projectile:hit`, `projectile:hit:entity` (incl. ownerId), `projectile:bounce`, `splash:detonated`, `splash:entity:hit`, `tile:damaged`, `tile:destroyed`, `entity:damaged`, `entity:killed`, `bomb:exploded`, `item:picked` (itemType, x, y), `wave:starting`, `wave:active`, `wave:clear`, `game:won`.
 - **WeaponBehavior dispatch**: `updateWeapons()` switches on `behavior.kind`. `hitscan` → `HitscanSystem.fire()`. `charge` → tracks `isCharging`/`chargeElapsed`, fires on mouse-up. `splash` → `tryFire()` with cursor-derived `splashTarget` + dynamic `lifetimeOverride`. `ballistic` → `tryFire()` with pellet loop.
 - **Composite entity**: Tank = Position + Velocity + TankParts + Weapon + Health + Tag + (ArmorKit if armored). Infantry = Position + Velocity + InfantryParts + Weapon + Health + Tag. Enemies additionally have AIComponent.
 - **Scene-orchestrated**: Systems are stateless functions called from `GameplayScene.update()`, not engine-registered.
-- **Scene flow**: Menu → Garage → Gameplay → GameOver → (Gameplay or Garage or Menu). `SceneManager.switchTo()`.
+- **Scene flow**: Menu → Garage → MapSelect → Gameplay → GameOver → (Gameplay | Garage | Menu). `SceneManager.switchTo()`. Map selected in MapSelectScene via `setSelectedMapId()` (module-level, same pattern as difficulty).
+- **Map registry**: `MAP_REGISTRY: MapEntry[]` in `config/MapRegistry.ts`. Each entry has `id`, `label`, `description`, `ascii`. `getSelectedMap()` returns the active entry. `GameplayScene.init()` calls `parseTilemap(getSelectedMap().ascii, ...)`.
+- **Map generator**: `generateMap(config, seed?)` in `maps/MapGenerator.ts`. Mulberry32 PRNG, terrain weights, symmetry fold (none/h/v/quad), object density, BFS connectivity. Presets in `config/MapGenDefaults.ts`. Output is identical ASCII format to handcrafted maps — copy/paste editable.
+- **Mini-map**: `MiniMapRenderer` in `hud/MiniMapRenderer.ts`. `init(grid, cols, rows)` pre-renders 1px/cell OffscreenCanvas. `draw()` blits top-right corner, overlays player (green dot) + enemy dots (role tints from `COMBAT_CONFIG.roleTints`). Tile/object colors from `MAP_SELECT_CONFIG` (single source shared with MapSelect thumbnails). Config in `MAP_CONFIG.MINI_MAP`.
 - **Loadout composition**: `LoadoutParts` (serializable IDs) → `assembleLoadout()` → `TankDef`. P/W ratio = engine.power / totalWeight → clamps [0.3, 2.5] → scales movement stats. Additionally `engine.speedMult` scales top speed and `engine.accelMult` scales acceleration independently. `GameplayScene.init()` reads `getActiveLoadout()`.
 - **Terrain costs**: `TrackDef.terrainCosts: Record<TileId, number>` — per-tile speed multiplier. Applied in `updateTankMovement()` (player) and `FlowField.compute()` (AI pathfinding, weighted Dijkstra).
 - **Per-weapon visuals**: `TurretVisual` on `WeaponDef` maps each gun to its sprite. `TankDef.turret` derived from weapon. `shellSpriteKey` per weapon. Turret pivot formula: `drawImage top = -(height * pivotY)` so pivot lands at entity center (both `TankRenderer` and `TankPreview`).
@@ -155,15 +175,17 @@ Individual PNGs in `public/sprites/`:
 - `hulls/` — Hull_01..08 (8 hulls, all 256x256)
 - `tracks/` — Track_1..4_A/B (8 tracks, all 42x246)
 - `weapons/` — Gun_01..08 (8 guns, varying sizes)
-- `tiles/` — Ground tiles (5 ground + Snow + Water), Block, Hedge, Container, Wall
+- `tiles/` — Ground tiles (5 ground + Snow + Water), Block, Container A/B/C/D, Wall, Czech_Hdgehog_A/B
+- `decor/` — Blast_Trail_01-06, Border_A/B/C, Puddle_01-06
 - `effects/` — 7 shell types (Medium/Light/Heavy/Sniper/Grenade/Shotgun/Plasma) + Laser, muzzle flash (4), impact (4), explosion (9)
 - `coins/` — Gold_1..8.png (8-frame spin loop)
 - `icons/` — 13 `*_Bonus/*_Debuff.png` (world drops, 128x128), 9 `*_Icon.png` (HUD status), Coin_A/B.png
 - `infantry/Soldier_1/` — Idle, Walk, Run, Shot_1, Recharge, Hurt, Dead (MG unit)
 - `infantry/Soldier_2/` — same set (Shotgun unit)
 - `infantry/Soldier_3/` — same set (Rifled unit)
+- `airforce/` — [Phase 6] helicopter_scout_body_1, helicopter_scout_blade_1, helicopter_combat_body_1, helicopter_combat_blade_1, bombing_plane_1
 
-Source: craftpix packs in `~/Downloads/craftpix/2d_tank_topdown/`; icons from `craftpix-976411`; infantry from `craftpix-net-507107`
+Source: craftpix packs in `~/Downloads/craftpix/2d_tank_topdown/`; icons from `craftpix-976411`; infantry from `craftpix-net-507107`; airforce from `~/Downloads/airforce/`
 
 ## Engine Usage
 

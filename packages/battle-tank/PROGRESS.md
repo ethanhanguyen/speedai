@@ -1119,3 +1119,222 @@ Draw:  pivot returns to aim (ease-out)    +  barrel spring extends
 - **`turretSwitchAngle` is additive** — composable with `turretAngle`; zero overhead when `switchPhase === 'none'` (renderer still reads 0).
 - **Reset on cancel/redirect** — angle snaps to 0 so a mid-switch correction doesn't visually compound.
 - **No engine changes.**
+
+---
+
+## Phase 5.6: Map Selection, Mini-map & Map Generator — COMPLETE
+
+**Gate**: Map selection screen before deploy. Mini-map overlay during play. Hedge tiles removed. Map generator module for designer workflow.
+
+### What's Built
+
+| File | Purpose |
+|------|---------|
+| `maps/MapGenerator.ts` | `generateMap(config, seed?)` — seeded mulberry32 PRNG, terrain fill, symmetry fold, BFS connectivity guarantee, player/enemy spawn placement |
+| `config/MapGenDefaults.ts` | `SURVIVAL_GEN_CONFIG` + `ARENA_GEN_CONFIG` named presets (no magic numbers) |
+| `maps/arena_01.ts` | Desert Arena map (generated with seed 7, hand-tuned) |
+| `config/MapRegistry.ts` | `MapEntry`, `MAP_REGISTRY` (2 maps), `getSelectedMapId/setSelectedMapId/getSelectedMap` |
+| `config/MapSelectConfig.ts` | Layout, thumbnail cell size, tile/object colors (single source for MapSelect + MiniMap), spawn dot colors |
+| `scenes/MapSelectScene.ts` | Card grid: OffscreenCanvas thumbnails, hover/click selection, BACK→Garage, DEPLOY→Gameplay |
+| `hud/MiniMapRenderer.ts` | `init(grid, cols, rows)` pre-renders 1px/cell OffscreenCanvas; `draw()` blits + scales to top-right, overlays player/enemy dots |
+| `config/MapConfig.ts` | Added `MINI_MAP` config object (size, margin, opacity, dot radii, colors) |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `tilemap/types.ts` | Removed `HEDGE` from `ObjectId` |
+| `tilemap/TileRegistry.ts` | Removed `[ObjectId.HEDGE]` from `OBJECT_DEFS`; removed `'H'` from `CHAR_MAP` |
+| `maps/survival_01.ts` | Replaced all `H` → `C` (container); updated legend |
+| `scenes/GarageScene.ts` | DEPLOY → `switchTo('MapSelect')` |
+| `scenes/GameplayScene.ts` | Reads `getSelectedMap().ascii` instead of hardcoded `SURVIVAL_01`; wires `MiniMapRenderer` |
+| `main.ts` | Registers `MapSelectScene`; removed `hedge-a01` asset load |
+
+### Scene Flow
+
+```
+Menu → Garage → MapSelect → Gameplay → GameOver → (Gameplay | Garage | Menu)
+```
+
+### Map Generator Designer Workflow
+
+Three usage levels:
+1. **Direct ASCII edit** — open any `.ts` map file, edit chars. Legend in file header.
+2. **Generator as scaffold** — call `generateMap(preset, seed)` → copy output to a new `.ts` file → hand-tune.
+3. **Tune presets** — modify `MapGenDefaults.ts` (terrain weights, density, symmetry) to produce new families.
+
+Generator guarantees: border walls, player/enemy spawn clear radius, BFS connectivity (carves path if blocked), optional quad/h/v symmetry for balanced layouts.
+
+### Decisions Made
+
+- **`MAP_SELECT_CONFIG.tileColors/objectColors` is single source** for both MapSelect thumbnails and MiniMapRenderer. No duplicated color tables.
+- **OffscreenCanvas 1px/cell** for mini-map static layer — pre-rendered once in `init()`, blitted every frame. Zero per-frame tile iteration cost.
+- **Mulberry32 PRNG** (4 lines) — fast, zero-dep, reproducible from seed. Standard in game dev.
+- **BFS carve** — if any enemy spawn is unreachable from player after object placement, carvePath clears a straight path. Guarantees playability.
+- **Hedge removed cleanly** — `ObjectId.HEDGE` deleted from enum; `H` char removed from `CHAR_MAP`. All `H` in `survival_01` replaced with `C`.
+- **`MapSelectScene` selects map on card click** (not DEPLOY click) — selection persists if player backs out to Garage to swap loadout.
+- **`getSelectedMap()` module-level** — same cross-scene pattern as `getSelectedDifficulty()`.
+- **No engine changes.**
+
+### Config Surface (new in Phase 5.6)
+
+| Config | Controls |
+|--------|----------|
+| `MapGenConfig.*` | Rows/cols, seed, symmetry, enemy spawn count, terrain weights, object density, spawn clear radius |
+| `SURVIVAL_GEN_CONFIG / ARENA_GEN_CONFIG` | Named presets for each map family |
+| `MAP_SELECT_CONFIG.card.*` | Card width/height/gap/padding/thumbnail height |
+| `MAP_SELECT_CONFIG.thumbnail.cellPx` | Pixels per tile cell in map preview (4) |
+| `MAP_SELECT_CONFIG.tileColors[TileId]` | Mini-map + thumbnail tile colors |
+| `MAP_SELECT_CONFIG.objectColors[ObjectId]` | Mini-map + thumbnail object overlay colors |
+| `MAP_CONFIG.MINI_MAP.*` | Size, margin, opacity, border, dot radii/colors |
+
+### Asset Inventory (Phase 5.6)
+
+- `Hedge_A_01.png` — **removed** (no longer loaded or referenced)
+
+---
+
+## Phase 5.7: Decorative Layer, Container Variants & Hedgehog Obstacles — COMPLETE
+
+**Gate**: Three-layer tilemap (ground → decor → object). Decor is render-only. Container sprites vary by position. Czech Hedgehog as impassable object. All placed by procedural post-load scatter passes.
+
+### What's Built
+
+| File | Purpose |
+|------|---------|
+| `tilemap/types.ts` | `DecorId` enum (20 variants), `ObjectId.HEDGEHOG`, `TileCell.decor?: DecorId` |
+| `tilemap/TileRegistry.ts` | `DecorDef` interface (spriteKey + scale?), `DECOR_DEFS`, `ObjectDef.spriteVariants?`, container variants + hedgehog in `OBJECT_DEFS`, `CHAR_MAP['H']` |
+| `tilemap/TilemapRenderer.ts` | Third render pass (decor, centered+scaled); `resolveObjectSprite()` position-hash variant picker |
+| `config/MapGenDefaults.ts` | `DecorScatterConfig` + sub-interfaces, `DECOR_SCATTER_CONFIG` |
+| `maps/MapGenerator.ts` | `applyDecorPasses()` — 3 passes: border decor, contextual scatter, hedgehog placement |
+| `config/MapRegistry.ts` | `MapEntry.decorSeed` — per-map deterministic scatter seed |
+| `config/MapSelectConfig.ts` | Added `objectColors[ObjectId.HEDGEHOG]` |
+| `scenes/GameplayScene.ts` | Calls `applyDecorPasses()` after `parseTilemap()` for all maps |
+| `main.ts` | Loads 30 new sprites: 6 blast trails, 3 borders, 5 pipes, 6 puddles (decor); 2 hedgehog, 3 container variants (objects) |
+| `public/sprites/decor/` | 20 decor PNGs from craftpix-976411 Decor_Items |
+| `public/sprites/tiles/` | Container_B/C/D.png, Czech_Hdgehog_A/B.png |
+
+### Three-Layer Architecture
+
+| Layer | Field | Absence | Gameplay effect | Render order |
+|-------|-------|---------|-----------------|--------------|
+| Ground | `TileCell.ground` | mandatory | terrain cost, walkability | bottom |
+| Decor | `TileCell.decor?` | `undefined` | **none** | middle |
+| Object | `TileCell.object` | `ObjectId.NONE` | collision, HP, projectile block | top |
+
+Key distinction: `DecorDef` has no `walkable/hp/blockProjectile` — zero gameplay flags by design. `ObjectDef.spriteVariants?` is visual only; gameplay flags stay on the single `ObjectId`.
+
+### applyDecorPasses — Three Passes
+
+| Pass | Scope | What |
+|------|-------|------|
+| 1 Border | Perimeter cells with no object | Random border decor at configured probability |
+| 2 Scatter | Interior open cells | Ground-type context (stone→blast trails, dirt/mud→puddles) + wall adjacency (WALL/BLOCK→pipes) |
+| 3 Hedgehog | Interior open non-water cells | `ObjectId.HEDGEHOG` at configured probability, suppressed within `minDistFromSpawn` tiles of any spawn |
+
+### Container Variant Selection
+
+`resolveObjectSprite(def, r, c, mapCols)` → `spriteVariants[(r × mapCols + c) % variants.length]`
+
+Deterministic by cell position. No extra storage on `TileCell`. All container variants share identical gameplay flags.
+
+### Decisions Made
+
+- **`decor?: DecorId` not `DecorId.NONE` sentinel** — absence is typed absence, not a value. Keeps enum clean; no phantom entry needed.
+- **`applyDecorPasses` is post-parse** — MapGenerator still outputs plain ASCII. Decor is a load-time step, not baked into map files. Handcrafted and generated maps use identical pipeline.
+- **`decorSeed` on `MapEntry`** — each map has a fixed, config-visible decor seed. Deterministic across reloads without hard-coding seeds in scene code.
+- **Position-hash variant selection** — no extra per-cell storage, no RNG at render time, deterministic per cell.
+- **Hedgehog spawn-clear suppression** — same `minDistFromSpawn` guard as spawn radius, keeps fight zones uncluttered.
+- **No engine changes.**
+
+### Config Surface (new in Phase 5.7)
+
+| Config | Controls |
+|--------|----------|
+| `DecorScatterConfig.border.probability` | Border decor density (0.35) |
+| `DecorScatterConfig.byGround[TileId].*` | Per-ground decor pool + probability |
+| `DecorScatterConfig.nearWall.probability` | Pipe scatter density near walls (0.20) |
+| `DecorScatterConfig.nearWall.adjacentObjects` | Which object types trigger pipe placement |
+| `DecorScatterConfig.hedgehog.probability` | Hedgehog density (0.035) |
+| `DecorScatterConfig.hedgehog.minDistFromSpawn` | Suppression radius in tiles (3) |
+| `MapEntry.decorSeed` | Per-map decor scatter seed |
+| `DECOR_DEFS[DecorId].scale` | Per-decor render scale (puddles 0.70) |
+
+### Asset Inventory (new in Phase 5.7)
+
+Source: `craftpix-976411` Decor_Items
+
+**Decor** (`/sprites/decor/`):
+- `decor-blast-1..6` → `Blast_Trail_01..06.png`
+- `decor-border-a/b/c` → `Border_A/B/C.png`
+- `decor-puddle-1..6` → `Puddle_01..06.png`
+
+**Objects** (`/sprites/tiles/`):
+- `container-b/c/d` → `Container_B/C/D.png`
+- `hedgehog-a/b` → `Czech_Hdgehog_A/B.png`
+
+---
+
+## Phase 6: Air Units — PENDING
+
+**Gate**: Scout + combat helicopters from Wave 7. Bombing plane flythrough from Wave 8. All air units fly over terrain. Player can engage with any weapon.
+
+### Task List
+
+| # | Task | Files |
+|---|------|-------|
+| 1 | `AirUnitComponent` + tag `'air'` | `components/AirUnit.ts` |
+| 2 | `DEPTH.AIR` render layer | `config/EngineConfig.ts` |
+| 3 | `targetLayer` on `WeaponDef`; guard `EntityCollisionSystem` | `config/WeaponConfig.ts`, `combat/EntityCollisionSystem.ts` |
+| 4 | Guard `TileCollisionSystem` on tag `'air'` | `systems/TileCollisionSystem.ts` |
+| 5 | `AIMovementMode.DIRECT` in `AIComponent`; `AirAISystem` FSM | `components/AI.ts`, `ai/AirAISystem.ts` |
+| 6 | All 3 unit defs + all numeric constants | `config/AirUnitConfig.ts` |
+| 7 | Entity builder + renderer (shadow → body → blade) | `tank/AirUnitAssembler.ts`, `tank/AirUnitRenderer.ts` |
+| 8 | `BombSystem.placeBomb()` + `sourceFaction` for enemy bombs | `combat/BombSystem.ts` |
+| 9 | `AirWaveEvent` type; wave 7+ entries | `config/WaveConfig.ts`, `systems/WaveSpawner.ts` |
+| 10 | Load airforce assets | `main.ts` |
+| 11 | Update docs | `CLAUDE.md`, `PROGRESS.md` |
+
+### Architecture Decisions
+
+**`AirUnitComponent`**: `{ altitude: number, bladeAngle: number, movementMode: 'hover'|'flythrough' }`. Tag `'air'` is the universal system guard.
+
+**System guards** (tag `'air'`):
+- `TileCollisionSystem` — early-exit if entity has tag `'air'` (flies over all terrain)
+- `EntityCollisionSystem` — check projectile `targetLayer` vs entity tag before registering hit
+- `FlowField` / `AISystem` — skipped for `'air'`; `AirAISystem` handles movement via direct vectors
+
+**`targetLayer: 'ground'|'air'|'all'`** on `WeaponDef`. Default `'all'` (player weapons hit air units). AI ballistic weapons use `'ground'`.
+
+**Rendering stack per air unit**:
+1. Shadow: body sprite, configurable alpha, offset by `altitude × shadowXFactor / shadowYFactor` from `AirUnitConfig`, `depth = DEPTH.GROUND`
+2. Body: `depth = DEPTH.AIR`
+3. Blade: rotated by `bladeAngle` (incremented `bladeRPM × dt` each frame), `depth = DEPTH.AIR + 1`
+
+**Helicopter FSM**: `PATROL → HOVER → ATTACK → RETREAT`. Direct-vector movement to waypoints; no flow field needed.
+
+**Bombing plane**: `FLYTHROUGH` only — linear path from off-screen edge to opposite edge; drops enemy bombs at `bombDropIntervalMs`; entity destroyed on exit. Triggered as `AirWaveEvent`, not a persistent unit.
+
+**Enemy bombs**: `BombSystem.placeBomb()` gets `sourceFaction: 'player'|'enemy'` param. Enemy proximity bombs use existing player-position scan; targeted at player.
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/AirUnit.ts` | `AirUnitComponent` data struct |
+| `src/config/AirUnitConfig.ts` | All 3 unit defs + blade RPM, altitude, shadow factors, bomb drop interval, flythrough speed, wave thresholds |
+| `src/ai/AirAISystem.ts` | Helicopter FSM (PATROL/HOVER/ATTACK/RETREAT) + plane flythrough path logic |
+| `src/tank/AirUnitAssembler.ts` | Entity builder: Position + Velocity + AirUnit + Health + Weapon + Tag `'air'` |
+| `src/tank/AirUnitRenderer.ts` | Shadow → body → blade draw pass |
+
+### Asset Inventory (Phase 6)
+
+Source: `/Users/hoang/Downloads/airforce/`
+
+| Key | File | Unit |
+|-----|------|------|
+| `heli-scout-body` | `helicopter_scout_body_1.png` | Scout Helicopter |
+| `heli-scout-blade` | `helicopter_scout_blade_1.png` | Scout Helicopter blade |
+| `heli-combat-body` | `helicopter_combat_body_1.png` | Combat Helicopter |
+| `heli-combat-blade` | `helicopter_combat_blade_1.png` | Combat Helicopter blade |
+| `bombing-plane` | `bombing_plane_1.png` | Bombing Plane |

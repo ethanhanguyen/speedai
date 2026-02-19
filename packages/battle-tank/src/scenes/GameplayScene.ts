@@ -36,8 +36,11 @@ import { WEAPON } from '../components/Weapon.js';
 import type { WeaponComponent } from '../components/Weapon.js';
 import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
-import { SURVIVAL_01 } from '../maps/survival_01.js';
+import { getSelectedMap } from '../config/MapRegistry.js';
+import { applyDecorPasses } from '../maps/MapGenerator.js';
+import { DECOR_SCATTER_CONFIG } from '../config/MapGenDefaults.js';
 import { MAP_CONFIG } from '../config/MapConfig.js';
+import { MiniMapRenderer } from '../hud/MiniMapRenderer.js';
 import { assembleLoadout, getLoadoutTerrainCosts } from '../config/PartRegistry.js';
 import type { TerrainCosts } from '../config/PartRegistry.js';
 import { getActiveLoadout } from '../systems/LoadoutSystem.js';
@@ -98,6 +101,7 @@ export class GameplayScene extends Scene {
   private transitionWon = false;
   private activeBombTypeRef: { value: BombType } = { value: 'proximity' };
   private terrainCosts!: TerrainCosts;
+  private miniMap!: MiniMapRenderer;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -119,9 +123,13 @@ export class GameplayScene extends Scene {
     this.activeBombTypeRef = { value: 'proximity' };
     WEAPON_KEY_STATE.clear();
 
-    const { grid, meta } = parseTilemap(SURVIVAL_01, MAP_CONFIG.tileSize);
+    const selectedMap = getSelectedMap();
+    const { grid, meta } = parseTilemap(selectedMap.ascii, MAP_CONFIG.tileSize);
+    applyDecorPasses(grid, meta, DECOR_SCATTER_CONFIG, selectedMap.decorSeed);
     this.tilemap = grid;
     this.mapMeta = meta;
+    this.miniMap = new MiniMapRenderer();
+    this.miniMap.init(grid, meta.cols, meta.rows);
 
     const worldW = meta.cols * MAP_CONFIG.tileSize;
     const worldH = meta.rows * MAP_CONFIG.tileSize;
@@ -444,6 +452,7 @@ export class GameplayScene extends Scene {
       switchProgress,
     };
     this.hud.draw(ctx, this.canvas.width, this.canvas.height, hudState);
+    this.miniMap.draw(ctx, this.canvas.width, this.canvas.height, this.entityManager, this.playerId);
 
     if (this.phase === 'game_over_transition') {
       const fadeAlpha = Math.min(1, this.transitionTimer / COMBAT_CONFIG.gameOverTransition.fadeIn);

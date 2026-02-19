@@ -14,6 +14,7 @@ import { GameplayScene } from './scenes/GameplayScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { GarageScene } from './scenes/GarageScene.js';
+import { MapSelectScene } from './scenes/MapSelectScene.js';
 
 async function main() {
   const canvas = document.querySelector('#game') as HTMLCanvasElement;
@@ -72,8 +73,28 @@ async function main() {
     // Objects
     assets.loadImage('block-a01', '/sprites/tiles/Block_A_01.png'),
     assets.loadImage('block-b01', '/sprites/tiles/Block_B_01.png'),
-    assets.loadImage('hedge-a01', '/sprites/tiles/Hedge_A_01.png'),
     assets.loadImage('container-a', '/sprites/tiles/Container_A.png'),
+    assets.loadImage('container-b', '/sprites/tiles/Container_B.png'),
+    assets.loadImage('container-c', '/sprites/tiles/Container_C.png'),
+    assets.loadImage('container-d', '/sprites/tiles/Container_D.png'),
+    assets.loadImage('hedgehog-a', '/sprites/tiles/Czech_Hdgehog_A.png'),
+    assets.loadImage('hedgehog-b', '/sprites/tiles/Czech_Hdgehog_B.png'),
+    // Decor sprites
+    assets.loadImage('decor-blast-1', '/sprites/decor/Blast_Trail_01.png'),
+    assets.loadImage('decor-blast-2', '/sprites/decor/Blast_Trail_02.png'),
+    assets.loadImage('decor-blast-3', '/sprites/decor/Blast_Trail_03.png'),
+    assets.loadImage('decor-blast-4', '/sprites/decor/Blast_Trail_04.png'),
+    assets.loadImage('decor-blast-5', '/sprites/decor/Blast_Trail_05.png'),
+    assets.loadImage('decor-blast-6', '/sprites/decor/Blast_Trail_06.png'),
+    assets.loadImage('decor-border-a', '/sprites/decor/Border_A.png'),
+    assets.loadImage('decor-border-b', '/sprites/decor/Border_B.png'),
+    assets.loadImage('decor-border-c', '/sprites/decor/Border_C.png'),
+    assets.loadImage('decor-puddle-1', '/sprites/decor/Puddle_01.png'),
+    assets.loadImage('decor-puddle-2', '/sprites/decor/Puddle_02.png'),
+    assets.loadImage('decor-puddle-3', '/sprites/decor/Puddle_03.png'),
+    assets.loadImage('decor-puddle-4', '/sprites/decor/Puddle_04.png'),
+    assets.loadImage('decor-puddle-5', '/sprites/decor/Puddle_05.png'),
+    assets.loadImage('decor-puddle-6', '/sprites/decor/Puddle_06.png'),
     // Projectile shells (7 types)
     assets.loadImage('medium-shell',   '/sprites/effects/Medium_Shell.png'),
     assets.loadImage('light-shell',    '/sprites/effects/Light_Shell.png'),
@@ -186,11 +207,13 @@ async function main() {
 
   const menu = new MenuScene(canvas, input, sceneManager);
   const garage = new GarageScene(canvas, assets, input, sceneManager);
+  const mapSelect = new MapSelectScene(canvas, input, sceneManager);
   const gameplay = new GameplayScene(canvas, assets, camera, input, pool, eventBus, sceneManager);
   const gameOver = new GameOverScene(canvas, input, sceneManager);
 
   sceneManager.register(menu);
   sceneManager.register(garage);
+  sceneManager.register(mapSelect);
   sceneManager.register(gameplay);
   sceneManager.register(gameOver);
   sceneManager.switchTo('Menu');

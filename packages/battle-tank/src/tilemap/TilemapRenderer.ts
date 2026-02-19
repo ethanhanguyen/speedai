@@ -1,13 +1,16 @@
 import type { GridModel, CameraSystem, AssetManager } from '@speedai/game-engine';
 import type { TileCell } from './types.js';
 import { ObjectId } from './types.js';
-import { TILE_DEFS, OBJECT_DEFS } from './TileRegistry.js';
+import { TILE_DEFS, OBJECT_DEFS, DECOR_DEFS } from './TileRegistry.js';
+import type { ObjectDef } from './TileRegistry.js';
 import { MAP_CONFIG } from '../config/MapConfig.js';
 import { ENGINE_CONFIG } from '../config/EngineConfig.js';
 
 /**
  * Draws a GridModel<TileCell> with camera-based culling.
  * Assumes ctx is already transformed to world space (camera applied).
+ *
+ * Render order: ground → tint → decor → objects
  */
 export function drawTilemap(
   ctx: CanvasRenderingContext2D,
@@ -36,16 +39,47 @@ export function drawTilemap(
     }
   }
 
-  // Object layer (z-order: above ground)
+  // Decor layer (z-order: above ground, below objects)
+  for (let r = startRow; r <= endRow; r++) {
+    for (let c = startCol; c <= endCol; c++) {
+      const cell = tilemap.get(r, c);
+      if (!cell || cell.decor === undefined) continue;
+      const def = DECOR_DEFS[cell.decor];
+      if (!def) continue;
+      const img = assets.getImage(def.spriteKey);
+      if (!img) continue;
+      if (def.scale !== undefined && def.scale !== 1) {
+        const drawn = ts * def.scale;
+        const offset = (ts - drawn) / 2;
+        ctx.drawImage(img, c * ts + offset, r * ts + offset, drawn, drawn);
+      } else {
+        ctx.drawImage(img, c * ts, r * ts, ts, ts);
+      }
+    }
+  }
+
+  // Object layer (z-order: above decor)
   for (let r = startRow; r <= endRow; r++) {
     for (let c = startCol; c <= endCol; c++) {
       const cell = tilemap.get(r, c);
       if (!cell || cell.object === ObjectId.NONE) continue;
       const def = OBJECT_DEFS[cell.object];
-      const img = assets.getImage(def.spriteKey);
+      const spriteKey = resolveObjectSprite(def, r, c, tilemap.cols);
+      const img = assets.getImage(spriteKey);
       if (img) ctx.drawImage(img, c * ts, r * ts, ts, ts);
     }
   }
+}
+
+/**
+ * Pick the sprite key for an object, using position hash for variant selection.
+ * Deterministic: same cell always renders the same variant.
+ */
+function resolveObjectSprite(def: ObjectDef, r: number, c: number, mapCols: number): string {
+  if (def.spriteVariants && def.spriteVariants.length > 0) {
+    return def.spriteVariants[(r * mapCols + c) % def.spriteVariants.length];
+  }
+  return def.spriteKey;
 }
 
 function getVisibleRange(

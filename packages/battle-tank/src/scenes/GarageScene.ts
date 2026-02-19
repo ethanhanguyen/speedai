@@ -132,7 +132,7 @@ export class GarageScene extends Scene {
     });
     this.deployBtn.on('click', () => {
       setActiveLoadout(this.parts);
-      this.sceneManager.switchTo('Gameplay');
+      this.sceneManager.switchTo('MapSelect');
     });
 
     // Back button
