@@ -8,8 +8,7 @@ export interface TankPartsComponent {
   trackKey: string;
   turretKey: string;
 
-  // Visual dimensions (px)
-  hullWidth: number;
+  // Visual dimensions (px); hullWidth derived at render time from sprite natural aspect ratio
   hullHeight: number;
   trackWidth: number;
   trackHeight: number;
@@ -47,4 +46,11 @@ export interface TankPartsComponent {
   // Shield — temporary damage reduction from 'shield' item pickup
   shieldElapsed: number;   // seconds since shield was activated (0 = inactive)
   shieldDuration: number;  // total shield duration in seconds (0 = inactive)
+
+  // Weapon-switch fade — alpha driven by WeaponSystem during stow/draw phases
+  turretAlpha: number;     // 0..1; 1 = fully visible (normal); managed by WeaponSystem
+
+  // Weapon-switch pivot sweep — additive angular offset from aim angle
+  // 0 = on target; non-zero during stow (sweeps away) and draw (returns to aim)
+  turretSwitchAngle: number; // radians
 }

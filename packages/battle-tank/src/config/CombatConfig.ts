@@ -315,4 +315,23 @@ export const COMBAT_CONFIG = {
     heavy:  0.30,  // 10–25% HP
     fire:   0.15,  // 0–10% HP (critical)
   },
+
+  // ---------------------------------------------------------------------------
+  // Phase 5.4 — Armor Deflection VFX
+  // ---------------------------------------------------------------------------
+
+  /** Silver spark burst emitted when a kinetic round ricochets off armor. */
+  deflection: {
+    ricochetParticles: {
+      x: 0, y: 0,
+      count: 6,
+      speed: 130,
+      size: 2,
+      colors: ['#e8e8e8', '#c0c0c0', '#ffffff'],
+      lifetime: 0.35,
+    } satisfies ParticleBurstConfig,
+    /** Floating text shown on ricochet (world space, above hit point). */
+    ricochetLabelText:  'RICO',
+    ricochetLabelColor: '#a0a0a0',
+  },
 };

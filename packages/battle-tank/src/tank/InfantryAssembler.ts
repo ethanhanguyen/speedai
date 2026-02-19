@@ -54,6 +54,9 @@ export function createInfantry(
     isOverheated: false,
     overheatElapsed: 0,
     laserFiring: false,
+    switchPhase: 'none',
+    switchElapsedMs: 0,
+    pendingDef: null,
   };
   em.addComponent(id, WEAPON, weapon as unknown as ComponentData);
 

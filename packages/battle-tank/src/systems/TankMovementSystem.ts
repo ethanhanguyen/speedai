@@ -1,9 +1,12 @@
-import type { EntityManager, UnifiedInput, CameraSystem, HealthComponent } from '@speedai/game-engine';
+import type { EntityManager, UnifiedInput, CameraSystem, HealthComponent, GridModel } from '@speedai/game-engine';
 import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
 import { WEAPON } from '../components/Weapon.js';
 import { COMBAT_CONFIG } from '../config/CombatConfig.js';
 import type { BuffSystem } from './BuffSystem.js';
+import type { TileCell } from '../tilemap/types.js';
+import type { TerrainCosts } from '../config/PartRegistry.js';
+import { MAP_CONFIG } from '../config/MapConfig.js';
 
 /** Damping ratio for recoil spring: critical damping = 1.0, overdamped > 1. */
 const RECOIL_DAMPING = 1.4;
@@ -29,6 +32,8 @@ export function updateTankMovement(
   camera: CameraSystem,
   dt: number,
   buffSystem?: BuffSystem,
+  tilemap?: GridModel<TileCell>,
+  terrainCosts?: TerrainCosts,
 ): void {
   const ids = em.query('Position', 'Velocity', TANK_PARTS, 'Tag');
 
@@ -59,8 +64,17 @@ export function updateTankMovement(
     const speedFactor = getDamageSpeedFactor(healthRatio);
     const buffSpeedMod = buffSystem ? buffSystem.getModifier('speed') : 1;
 
+    // Terrain speed multiplier from tile under tank center
+    let terrainMod = 1;
+    if (tilemap && terrainCosts) {
+      const tr = Math.floor(pos.y / MAP_CONFIG.tileSize);
+      const tc = Math.floor(pos.x / MAP_CONFIG.tileSize);
+      const cell = tilemap.get(tr, tc);
+      if (cell) terrainMod = terrainCosts[cell.ground] ?? 1;
+    }
+
     if (driveInput !== 0) {
-      const maxSpd = (driveInput > 0 ? tank.maxForwardSpeed : tank.maxReverseSpeed) * speedFactor * buffSpeedMod;
+      const maxSpd = (driveInput > 0 ? tank.maxForwardSpeed : tank.maxReverseSpeed) * speedFactor * buffSpeedMod * terrainMod;
       const targetSpeed = driveInput * maxSpd;
       // Accelerate toward target speed
       if (tank.speed < targetSpeed) {

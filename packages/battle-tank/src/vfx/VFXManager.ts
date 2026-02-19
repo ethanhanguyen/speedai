@@ -225,6 +225,22 @@ export class VFXManager {
       this.particles.emit({ ...COMBAT_CONFIG.splashParticles, x: d.x, y: d.y });
       this.camera.shake(4, 0.2);
     });
+
+    // --- Phase 5.4: armor deflection ---
+
+    eventBus.on('projectile:deflected', (event: unknown) => {
+      const e = event as { data?: { x: number; y: number } };
+      const d = (e.data ?? e) as { x: number; y: number };
+      if (!d) return;
+      this.particles.emit({ ...COMBAT_CONFIG.deflection.ricochetParticles, x: d.x, y: d.y });
+      this.floatingLabels.push({
+        x: d.x,
+        y: d.y - 12,
+        text:    COMBAT_CONFIG.deflection.ricochetLabelText,
+        color:   COMBAT_CONFIG.deflection.ricochetLabelColor,
+        elapsed: 0,
+      });
+    });
   }
 
   private spawnMuzzleFlash(x: number, y: number, angle: number, weapon: WeaponDef): void {

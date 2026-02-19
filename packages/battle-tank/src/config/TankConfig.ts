@@ -1,11 +1,11 @@
-import type { WeaponDef } from './WeaponConfig.js';
+import type { WeaponDef, TurretVisual } from './WeaponConfig.js';
 import type { ArmorKitId } from './ArmorConfig.js';
 import { GUN_01, SNIPER_GUN, AUTOCANNON } from './WeaponConfig.js';
 
 export interface TankDef {
-  hull:   { spriteKey: string; width: number; height: number };
+  hull:   { spriteKey: string; height: number };
   tracks: { spriteKey: string; width: number; height: number; spacing: number };
-  turret: { spriteKey: string; width: number; height: number; pivotY: number };
+  turret: TurretVisual;
   weapon: WeaponDef;
   movement: {
     maxForwardSpeed: number;  // px/s
@@ -25,9 +25,9 @@ export interface TankDef {
  * Source sprites: Hull 256×256, Track 42×246, Gun 94×212.
  */
 export const PLAYER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: GUN_01.turret,
   weapon: GUN_01,
   movement: {
     maxForwardSpeed: 150,
@@ -42,14 +42,14 @@ export const PLAYER_TANK: TankDef = {
 };
 
 // ---------------------------------------------------------------------------
-// Enemy tank defs
+// Enemy tank defs — turret derived from weapon
 // ---------------------------------------------------------------------------
 
 /** Grunt — slow, basic. No armor. */
 export const GRUNT_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: GUN_01.turret,
   weapon: GUN_01,
   movement: {
     maxForwardSpeed: 100,
@@ -65,9 +65,9 @@ export const GRUNT_TANK: TankDef = {
 
 /** Flanker — fast, strafes. No armor. */
 export const FLANKER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: AUTOCANNON.turret,
   weapon: AUTOCANNON,
   movement: {
     maxForwardSpeed: 130,
@@ -83,9 +83,9 @@ export const FLANKER_TANK: TankDef = {
 
 /** Sniper — slow, fragile, long-range. No armor. */
 export const SNIPER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: SNIPER_GUN.turret,
   weapon: SNIPER_GUN,
   movement: {
     maxForwardSpeed: 70,
@@ -101,9 +101,9 @@ export const SNIPER_TANK: TankDef = {
 
 /** Rusher — very fast, charges straight in. No armor. */
 export const RUSHER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: AUTOCANNON.turret,
   weapon: AUTOCANNON,
   movement: {
     maxForwardSpeed: 180,
@@ -119,9 +119,9 @@ export const RUSHER_TANK: TankDef = {
 
 /** Heavy Grunt — slower, tougher, reactive armor vs explosives. */
 export const HEAVY_GRUNT_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: GUN_01.turret,
   weapon: GUN_01,
   movement: {
     maxForwardSpeed: 75,
@@ -138,9 +138,9 @@ export const HEAVY_GRUNT_TANK: TankDef = {
 
 /** Composite Sniper — elite sniper with composite ceramic armor. */
 export const ARMORED_SNIPER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: SNIPER_GUN.turret,
   weapon: SNIPER_GUN,
   movement: {
     maxForwardSpeed: 65,
@@ -157,9 +157,9 @@ export const ARMORED_SNIPER_TANK: TankDef = {
 
 /** Cage Rusher — fast rusher with cage armor (excels vs explosives). */
 export const CAGE_RUSHER_TANK: TankDef = {
-  hull:   { spriteKey: 'hull-01',  width: 56, height: 56 },
+  hull:   { spriteKey: 'hull-01',  height: 56 },
   tracks: { spriteKey: 'track-1a', width: 9,  height: 54, spacing: 22 },
-  turret: { spriteKey: 'gun-01',   width: 20, height: 46, pivotY: 0.8 },
+  turret: AUTOCANNON.turret,
   weapon: AUTOCANNON,
   movement: {
     maxForwardSpeed: 170,

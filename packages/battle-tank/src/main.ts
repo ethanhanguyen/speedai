@@ -13,6 +13,7 @@ import { COMBAT_CONFIG } from './config/CombatConfig.js';
 import { GameplayScene } from './scenes/GameplayScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
+import { GarageScene } from './scenes/GarageScene.js';
 
 async function main() {
   const canvas = document.querySelector('#game') as HTMLCanvasElement;
@@ -35,21 +36,53 @@ async function main() {
   // --- Assets ---
   const assets = new AssetManager();
   await Promise.all([
-    // Tank
+    // Hulls (8)
     assets.loadImage('hull-01', '/sprites/hulls/Hull_01.png'),
+    assets.loadImage('hull-02', '/sprites/hulls/Hull_02.png'),
+    assets.loadImage('hull-03', '/sprites/hulls/Hull_03.png'),
+    assets.loadImage('hull-04', '/sprites/hulls/Hull_04.png'),
+    assets.loadImage('hull-05', '/sprites/hulls/Hull_05.png'),
+    assets.loadImage('hull-06', '/sprites/hulls/Hull_06.png'),
+    assets.loadImage('hull-07', '/sprites/hulls/Hull_07.png'),
+    assets.loadImage('hull-08', '/sprites/hulls/Hull_08.png'),
+    // Tracks (8 — 4 types × A/B variants)
     assets.loadImage('track-1a', '/sprites/tracks/Track_1_A.png'),
+    assets.loadImage('track-1b', '/sprites/tracks/Track_1_B.png'),
+    assets.loadImage('track-2a', '/sprites/tracks/Track_2_A.png'),
+    assets.loadImage('track-2b', '/sprites/tracks/Track_2_B.png'),
+    assets.loadImage('track-3a', '/sprites/tracks/Track_3_A.png'),
+    assets.loadImage('track-3b', '/sprites/tracks/Track_3_B.png'),
+    assets.loadImage('track-4a', '/sprites/tracks/Track_4_A.png'),
+    assets.loadImage('track-4b', '/sprites/tracks/Track_4_B.png'),
+    // Guns (8)
     assets.loadImage('gun-01', '/sprites/weapons/Gun_01.png'),
+    assets.loadImage('gun-02', '/sprites/weapons/Gun_02.png'),
+    assets.loadImage('gun-03', '/sprites/weapons/Gun_03.png'),
+    assets.loadImage('gun-04', '/sprites/weapons/Gun_04.png'),
+    assets.loadImage('gun-05', '/sprites/weapons/Gun_05.png'),
+    assets.loadImage('gun-06', '/sprites/weapons/Gun_06.png'),
+    assets.loadImage('gun-07', '/sprites/weapons/Gun_07.png'),
+    assets.loadImage('gun-08', '/sprites/weapons/Gun_08.png'),
     // Ground tiles
     assets.loadImage('ground-01a', '/sprites/tiles/Ground_Tile_Dirty_Road_1.png'),
     assets.loadImage('ground-01b', '/sprites/tiles/Ground_Tile_Grass_1.png'),
     assets.loadImage('ground-02a', '/sprites/tiles/Ground_Tile_Dirty_Road_2.png'),
+    assets.loadImage('ground-snow',  '/sprites/tiles/Ground_Tile_Snow_1.png'),
+    assets.loadImage('ground-water', '/sprites/tiles/Ground_Tile_Water_1.png'),
     // Objects
     assets.loadImage('block-a01', '/sprites/tiles/Block_A_01.png'),
     assets.loadImage('block-b01', '/sprites/tiles/Block_B_01.png'),
     assets.loadImage('hedge-a01', '/sprites/tiles/Hedge_A_01.png'),
     assets.loadImage('container-a', '/sprites/tiles/Container_A.png'),
-    // Projectile
-    assets.loadImage('medium-shell', '/sprites/effects/Medium_Shell.png'),
+    // Projectile shells (7 types)
+    assets.loadImage('medium-shell',   '/sprites/effects/Medium_Shell.png'),
+    assets.loadImage('light-shell',    '/sprites/effects/Light_Shell.png'),
+    assets.loadImage('heavy-shell',    '/sprites/effects/Heavy_Shell.png'),
+    assets.loadImage('sniper-shell',   '/sprites/effects/Sniper_Shell.png'),
+    assets.loadImage('grenade-shell',  '/sprites/effects/Granade_Shell.png'),
+    assets.loadImage('shotgun-shells', '/sprites/effects/Shotgun_Shells.png'),
+    assets.loadImage('plasma',         '/sprites/effects/Plasma.png'),
+    assets.loadImage('laser-beam',     '/sprites/effects/Laser.png'),
     // Muzzle flash (4 frames)
     assets.loadImage('muzzle-flash-0', '/sprites/effects/Sprite_Fire_Shots_Shot_A_000.png'),
     assets.loadImage('muzzle-flash-1', '/sprites/effects/Sprite_Fire_Shots_Shot_A_001.png'),
@@ -152,10 +185,12 @@ async function main() {
   const sceneManager = new SceneManager(engine.entities);
 
   const menu = new MenuScene(canvas, input, sceneManager);
+  const garage = new GarageScene(canvas, assets, input, sceneManager);
   const gameplay = new GameplayScene(canvas, assets, camera, input, pool, eventBus, sceneManager);
   const gameOver = new GameOverScene(canvas, input, sceneManager);
 
   sceneManager.register(menu);
+  sceneManager.register(garage);
   sceneManager.register(gameplay);
   sceneManager.register(gameOver);
   sceneManager.switchTo('Menu');

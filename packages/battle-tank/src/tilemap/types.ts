@@ -3,6 +3,11 @@ export enum TileId {
   GRASS = 'grass',
   DIRT = 'dirt',
   STONE = 'stone',
+  MUD = 'mud',
+  SAND = 'sand',
+  ICE = 'ice',
+  WATER = 'water',
+  PUDDLE = 'puddle',
 }
 
 /** Object layer identifiers (placed on top of ground). */

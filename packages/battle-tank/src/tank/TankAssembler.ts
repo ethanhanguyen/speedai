@@ -28,7 +28,6 @@ export function createTank(
     hullKey: def.hull.spriteKey,
     trackKey: def.tracks.spriteKey,
     turretKey: def.turret.spriteKey,
-    hullWidth: def.hull.width,
     hullHeight: def.hull.height,
     trackWidth: def.tracks.width,
     trackHeight: def.tracks.height,
@@ -54,6 +53,8 @@ export function createTank(
     hitFlashColor: '',
     shieldElapsed: 0,
     shieldDuration: 0,
+    turretAlpha: 1,
+    turretSwitchAngle: 0,
   };
 
   em.addComponent(id, TANK_PARTS, parts as unknown as ComponentData);
@@ -68,6 +69,9 @@ export function createTank(
     isOverheated: false,
     overheatElapsed: 0,
     laserFiring: false,
+    switchPhase: 'none',
+    switchElapsedMs: 0,
+    pendingDef: null,
   };
   em.addComponent(id, WEAPON, weapon as unknown as ComponentData);
 

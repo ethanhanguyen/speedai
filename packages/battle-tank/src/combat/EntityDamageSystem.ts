@@ -1,11 +1,24 @@
 import type { EntityManager, EventBus, HealthComponent } from '@speedai/game-engine';
-import { ARMOR_TABLE } from '../config/ArmorConfig.js';
+import { ARMOR_TABLE, ARMOR_KIT_DEFS } from '../config/ArmorConfig.js';
 import { ARMOR_KIT } from '../components/ArmorKit.js';
 import type { ArmorKitComponent } from '../components/ArmorKit.js';
 import { AI_STATE } from '../components/AI.js';
 import type { AIComponent } from '../components/AI.js';
 import type { WeaponDef } from '../config/WeaponConfig.js';
 import type { BuffSystem } from '../systems/BuffSystem.js';
+import { TANK_PARTS } from '../tank/TankParts.js';
+import type { TankPartsComponent } from '../tank/TankParts.js';
+import { INFANTRY_PARTS } from '../components/InfantryParts.js';
+import type { InfantryPartsComponent } from '../components/InfantryParts.js';
+
+const DEG_TO_RAD = Math.PI / 180;
+
+/** Wrap angle to [-PI, PI]. */
+function wrapAngle(a: number): number {
+  while (a >  Math.PI) a -= 2 * Math.PI;
+  while (a < -Math.PI) a += 2 * Math.PI;
+  return a;
+}
 
 /**
  * Listens to 'projectile:hit:entity' and 'splash:entity:hit'.
@@ -29,7 +42,51 @@ export function initEntityDamageListeners(
     const armor   = em.getComponent(d.targetId, ARMOR_KIT) as ArmorKitComponent | undefined;
     const kitId   = armor?.kitId ?? 'none';
     const dmgType = d.weaponDef?.damageType ?? 'kinetic';
-    let eff       = Math.round(d.damage * ARMOR_TABLE[kitId][dmgType]);
+    const kitDef  = ARMOR_KIT_DEFS[kitId];
+
+    // --- Zone + angle-of-incidence (Phase 5.4) ---
+    let zoneMult = 1.0;
+    const tankPos     = em.getComponent(d.targetId, 'Position') as { x: number; y: number } | undefined;
+    const tankParts   = em.getComponent(d.targetId, TANK_PARTS) as TankPartsComponent | undefined;
+    const infParts    = em.getComponent(d.targetId, INFANTRY_PARTS) as InfantryPartsComponent | undefined;
+    const hullAngle   = tankParts?.hullAngle ?? infParts?.facingAngle ?? 0;
+
+    if (tankPos && d.shotVx !== undefined && d.shotVy !== undefined) {
+      // Outward normal: direction from tank center to hit point (atan2 convention)
+      const outwardNormal = Math.atan2(d.y - tankPos.y, d.x - tankPos.x);
+
+      // Zone: angular distance from hull forward to hit-point normal.
+      // Hull forward in screen atan2 = hullAngle - PI/2 (0=up convention → -PI/2 in atan2).
+      const frontDiff = Math.abs(wrapAngle(outwardNormal - (hullAngle - Math.PI / 2)));
+      const zone = frontDiff < kitDef.zones.frontArcDeg * DEG_TO_RAD ? 'front'
+                 : frontDiff > Math.PI - kitDef.zones.rearArcDeg * DEG_TO_RAD ? 'rear'
+                 : 'side';
+      zoneMult = zone === 'front' ? kitDef.zones.frontMult
+               : zone === 'rear'  ? kitDef.zones.rearMult
+               : kitDef.zones.sideMult;
+
+      // Incidence angle: 0=head-on (perpendicular to armor), PI/2=glancing.
+      // Inward normal = outwardNormal + PI; projectile matches inward normal when head-on.
+      const projAngle = Math.atan2(d.shotVy, d.shotVx);
+      let incidenceRad = Math.abs(wrapAngle(projAngle - (outwardNormal + Math.PI)));
+
+      // AP (kinetic) rounds partially self-orient on contact → reduce incidence
+      if (dmgType === 'kinetic') {
+        incidenceRad = Math.max(0, incidenceRad - kitDef.deflection.normalizationDeg * DEG_TO_RAD);
+      }
+
+      // Ricochet: kinetic glancing blow below overmatch threshold → zero damage
+      if (
+        dmgType === 'kinetic' &&
+        d.damage < kitDef.deflection.overmatchDamage &&
+        incidenceRad > kitDef.deflection.ricochetAngleDeg * DEG_TO_RAD
+      ) {
+        eventBus.fire('projectile:deflected', { x: d.x, y: d.y });
+        return;
+      }
+    }
+
+    let eff = Math.round(d.damage * ARMOR_TABLE[kitId][dmgType] * zoneMult);
 
     // Buff modifiers: outgoing damage (attacker=player) + incoming damage (target=player)
     if (buffSystem) {

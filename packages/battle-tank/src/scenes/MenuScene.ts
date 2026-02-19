@@ -100,7 +100,7 @@ export class MenuScene extends Scene {
       borderRadius: 8,
     });
     this.playBtn.on('click', () => {
-      this.sceneManager.switchTo('Gameplay');
+      this.sceneManager.switchTo('Garage');
     });
     this.wasPointerDown = false;
   }

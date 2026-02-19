@@ -17,6 +17,7 @@ export function setGameOverStats(stats: GameOverStats): void {
 export class GameOverScene extends Scene {
   private stats: GameOverStats = pendingStats;
   private playAgainBtn!: Button;
+  private garageBtn!: Button;
   private menuBtn!: Button;
   private wasPointerDown = false;
 
@@ -30,10 +31,10 @@ export class GameOverScene extends Scene {
 
   init(): void {
     this.stats = { ...pendingStats };
-    const btnW = 180;
+    const btnW = 150;
     const btnH = 44;
     const gap = 16;
-    const totalW = btnW * 2 + gap;
+    const totalW = btnW * 3 + gap * 2;
     const startX = (CW - totalW) / 2;
     const btnY = CH / 2 + 60;
 
@@ -53,8 +54,24 @@ export class GameOverScene extends Scene {
       this.sceneManager.switchTo('Gameplay');
     });
 
-    this.menuBtn = new Button({
+    this.garageBtn = new Button({
       x: startX + btnW + gap,
+      y: btnY,
+      width: btnW,
+      height: btnH,
+      label: 'GARAGE',
+      font: 'bold 18px monospace',
+      backgroundColor: '#47a',
+      hoverColor: '#58b',
+      pressedColor: '#369',
+      borderRadius: 6,
+    });
+    this.garageBtn.on('click', () => {
+      this.sceneManager.switchTo('Garage');
+    });
+
+    this.menuBtn = new Button({
+      x: startX + (btnW + gap) * 2,
       y: btnY,
       width: btnW,
       height: btnH,
@@ -74,16 +91,14 @@ export class GameOverScene extends Scene {
 
   update(_dt: number): void {
     const pointer = this.input.getPointer();
-    this.playAgainBtn.onPointerMove(pointer.x, pointer.y);
-    this.menuBtn.onPointerMove(pointer.x, pointer.y);
+    const allButtons = [this.playAgainBtn, this.garageBtn, this.menuBtn];
+    for (const btn of allButtons) btn.onPointerMove(pointer.x, pointer.y);
 
     if (pointer.down && !this.wasPointerDown) {
-      this.playAgainBtn.onPointerDown(pointer.x, pointer.y);
-      this.menuBtn.onPointerDown(pointer.x, pointer.y);
+      for (const btn of allButtons) btn.onPointerDown(pointer.x, pointer.y);
     }
     if (!pointer.down && this.wasPointerDown) {
-      this.playAgainBtn.onPointerUp(pointer.x, pointer.y);
-      this.menuBtn.onPointerUp(pointer.x, pointer.y);
+      for (const btn of allButtons) btn.onPointerUp(pointer.x, pointer.y);
     }
     this.wasPointerDown = pointer.down;
   }
@@ -118,6 +133,7 @@ export class GameOverScene extends Scene {
 
     // Buttons
     this.playAgainBtn.draw(ctx);
+    this.garageBtn.draw(ctx);
     this.menuBtn.draw(ctx);
   }
 }

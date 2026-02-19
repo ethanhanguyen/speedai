@@ -1,6 +1,6 @@
 # @speedai/battle-tank
 
-Top-down tank survival game. Tilemap world, composite tank sprites + animated infantry units, WASD + mouse controls. Click to fire. 8-wave survival with AI enemies, combined-arms squads, 8 player weapons, armor system, and 3 bomb types.
+Top-down tank survival game. Tilemap world, composite tank sprites + animated infantry units, WASD + mouse controls. Click to fire. 8-wave survival with AI enemies, combined-arms squads, 8 player weapons, armor system, 3 bomb types. Garage scene for loadout customization (hull/engine/track/gun/armor) with P/W ratio + terrain costs.
 
 ## Commands
 ```
@@ -14,13 +14,13 @@ npm run typecheck  # tsc --noEmit
 
 ```
 src/
-├── main.ts              Entry: engine, assets, 3 scenes, ObjectPoolSystem, EventBus, game loop
+├── main.ts              Entry: engine, assets, 4 scenes, ObjectPoolSystem, EventBus, game loop
 ├── config/
 │   ├── EngineConfig.ts  Canvas 960x540, FPS, entity cap
 │   ├── MapConfig.ts     Tile size (64px)
-│   ├── TankConfig.ts    TankDef (hull/tracks/turret/weapon/movement/armorKit?) + PLAYER_TANK + 7 enemy defs (3 armored)
+│   ├── TankConfig.ts    TankDef (hull/tracks/turret/weapon/movement/armorKit?) + 7 enemy defs (3 armored); player tank assembled from loadout
 │   ├── InfantryConfig.ts InfantryDef, InfantryAnimState, INFANTRY_ANIM_TABLE (3 soldiers × 7 states), FORMATION_SLOTS, SQUAD_CONFIG, 3 unit defs (MG/Shotgun/Rifled)
-│   ├── WeaponConfig.ts  WeaponBehavior union + UnitClass ('any'|'tank'|'infantry') + WeaponDef + GUN_01-08 + AI guns + 3 infantry weapons + WEAPON_REGISTRY + PLAYER_WEAPONS
+│   ├── WeaponConfig.ts  WeaponBehavior union + UnitClass + TurretVisual + WeaponDef (incl turret + weight) + GUN_01-08 + AI guns + 3 infantry weapons + WEAPON_REGISTRY + PLAYER_WEAPONS
 │   ├── CombatConfig.ts  Pool size, VFX configs, trajectoryPreview, howitzerIndicator, laserBeam, chargeBar, bomb, splashParticles, roleTints, killSlowMo, gameOverTransition
 │   ├── ArmorConfig.ts   DamageType ('kinetic'|'explosive'|'energy'), ArmorKitId, ARMOR_TABLE (4×3 multiplier matrix)
 │   ├── BombConfig.ts    BombType, BombDef, BOMB_DEFS, BOMB_PLACE_KEY, BOMB_CYCLE_KEYS
@@ -28,20 +28,22 @@ src/
 │   ├── WaveConfig.ts    WaveEnemy, SquadMemberDef, SquadDef, WaveEntry (enemies + squads?), WAVE_TABLE (8 waves; squads from wave 2), WAVE_CONFIG
 │   ├── DropConfig.ts    DropItemType (14 types: coin/hp/ammo/nuke/hp_debuff + 5 buffs + 4 debuffs), ITEM_DISPLAY, ITEM_POLARITY, weighted DROP_TABLES, DROP_PHYSICS, ITEM_EFFECTS
 │   ├── BuffConfig.ts    BuffStat, TimedBuffDef (+ label field), TIMED_BUFF_DEFS (9 timed effects), BUFF_HUD (icon size/blink/vignette/aura config), BUFF_AURA_COLORS, BUFF_NOTIFY
-│   └── GameStateTypes.ts GameHUDState (hp/coins/kills/wave/chargeRatio?/weaponName?/activeBombType?/activeEffects?), GameOverStats, WaveState
+│   ├── GameStateTypes.ts GameHUDState (hp/coins/kills/wave/chargeRatio?/weaponName?/activeBombType?/activeEffects?), GameOverStats, WaveState
+│   ├── PartRegistry.ts  HullDef/EngineDef/TrackDef/ArmorPartDef/LoadoutParts/RadarStats; 8 hulls, 4 engines, 4 tracks, 4 armors; assembleLoadout() → TankDef; computeRadarStats(); P/W ratio
+│   └── GarageConfig.ts  GARAGE_LAYOUT pixel rects, GARAGE_STYLE colors/fonts, SLOT_CATEGORIES, FLAVOR_TEXT
 ├── components/
 │   ├── Projectile.ts    ProjectileComponent {weaponDef, ownerId, elapsed, lifetimeOverride?, bouncesRemaining, piercesRemaining, hitEntities, splashTarget?}
-│   ├── Weapon.ts        WeaponComponent {def, cooldownRemaining, chargeElapsed, isCharging, shotCount}
+│   ├── Weapon.ts        WeaponComponent {def, cooldownRemaining, chargeElapsed, isCharging, shotCount, switchPhase, switchElapsedMs, pendingDef}
 │   ├── AI.ts            AIComponent {state, role, resolved profile fields, strafeSign, squadLeadId?, formationDx, formationDy}
 │   ├── InfantryParts.ts InfantryPartsComponent {soldierVariant, animState, facingAngle, speed, maxSpeed, collisionRadius, muzzleOffsetPx, hitFlash*, shotFlash*}
 │   ├── ArmorKit.ts      ArmorKitComponent {kitId: ArmorKitId}
 │   ├── Beam.ts          BeamComponent (laser VFX, held by HitscanSystem not EntityManager)
 │   └── Bomb.ts          BombComponent {type, state: BombState, elapsedMs, ownerId, detonated}
 ├── tilemap/
-│   ├── types.ts         TileId, ObjectId, TileCell, MapData (incl enemySpawns)
-│   ├── TileRegistry.ts  TILE_DEFS, OBJECT_DEFS, CHAR_MAP (P=player, S=enemy spawn)
+│   ├── types.ts         TileId (8: grass/dirt/stone/mud/sand/ice/water/puddle), ObjectId, TileCell, MapData (incl enemySpawns)
+│   ├── TileRegistry.ts  TILE_DEFS (8 tiles: spriteKey + optional tint overlay), OBJECT_DEFS, CHAR_MAP (P=player, S=enemy spawn)
 │   ├── TilemapLoader.ts parseTilemap() → GridModel<TileCell> + MapData
-│   └── TilemapRenderer.ts drawTilemap() — camera-culled, two-layer
+│   └── TilemapRenderer.ts drawTilemap() — camera-culled; ground + 8-dir sprite-blend transitions + object layers
 ├── tank/
 │   ├── TankParts.ts         TankPartsComponent — recoilOffset/recoilVelocity (spring-damper) + hitFlash*
 │   ├── TankAssembler.ts     createTank() → Position+Velocity+TankParts+Weapon+Health+Tag+(ArmorKit)
@@ -50,7 +52,7 @@ src/
 │   ├── InfantryAssembler.ts createInfantry() → Position+Velocity+InfantryParts+Weapon+Health+Tag
 │   └── InfantryRenderer.ts  InfantryRenderer class — sprite sheet clipping, hit flash, DeathAnim queue
 ├── ai/
-│   ├── FlowField.ts     Dijkstra flood → direction grid, recompute-on-move
+│   ├── FlowField.ts     Weighted Dijkstra (binary min-heap) → direction grid, recompute-on-move; optional TerrainCosts
 │   ├── AISystem.ts      updateAI() — dual loop (tanks + infantry); FSM shared; squad formation steering in CHASE; flow-field fallback when lead dies
 │   └── resolveAIProfile.ts  Pure fn: base × difficulty × wave ± variance → resolved AIBehaviorProfile
 ├── combat/
@@ -71,16 +73,23 @@ src/
 ├── hud/
 │   └── HudRenderer.ts   HP bar, wave indicator, kill count, coin count, wave banner, active buff/debuff icons (32px, radial cooldown, expiry blink), screen-edge vignette
 ├── systems/
-│   ├── TankMovementSystem.ts WASD → hull rotation + speed (with BuffSystem speed/turnRate modifiers); mouse → turret angle; updateTankVFXState() — recoil spring-damper + hit flash timer for all tanks
+│   ├── TankMovementSystem.ts WASD → hull rotation + speed (with BuffSystem speed/turnRate + terrain cost modifiers); mouse → turret angle; updateTankVFXState() — recoil spring-damper + hit flash timer for all tanks
+│   ├── LoadoutSystem.ts     Active loadout (module-level) + LocalStorage save/load (3 slots)
 │   ├── InfantryMovementSystem.ts updateInfantryVFXState() — anim state machine, frame advance, timer ticks; re-exports getDamageSpeedFactor
 │   ├── TileCollisionSystem.ts Separate-axis tile collision (circle vs grid)
 │   ├── DropSystem.ts    World drops: coins + 13 item types; weighted bonus pools; magnet pull (buffable); spawn pop animation; TTL despawn; fires item:picked
 │   ├── BuffSystem.ts    Player-only timed effects tracker; applyEffect/getModifier/getActiveEffects; consumed by TankMovement/Weapon/EntityDamage/Drop/HUD systems
 │   └── WaveSpawner.ts   Wave lifecycle, round-robin spawns, jitter, resolveAIProfile; squad blocks: tank spawns first, infantry patched with real squadLeadId
+├── garage/
+│   ├── RadarChart.ts     6-axis radar chart (SPD/ACC/FPW/ROF/ARM/HND)
+│   ├── WeightBar.ts      Weight bar + P/W ratio display, overload pulse
+│   ├── CompareStrip.ts   Stat delta arrows (▲/▼/—) + flavor text on hover
+│   └── TankPreview.ts    Rotatable tank preview from loadout parts
 ├── scenes/
-│   ├── MenuScene.ts     Title + difficulty selector + Play button
-│   ├── GameplayScene.ts Orchestrates all systems, AI, waves, SlowMotion
-│   └── GameOverScene.ts Stats display + Play Again / Menu buttons
+│   ├── MenuScene.ts     Title + difficulty selector → Garage
+│   ├── GarageScene.ts   Loadout customization: preview, part cards, radar, save/load, deploy
+│   ├── GameplayScene.ts Orchestrates all systems, AI, waves, SlowMotion; uses loadout
+│   └── GameOverScene.ts Stats display + Play Again / Garage / Menu buttons
 └── maps/
     └── survival_01.ts   24x18 ASCII map with 4 enemy spawn points
 ```
@@ -92,9 +101,13 @@ src/
 - **WeaponBehavior dispatch**: `updateWeapons()` switches on `behavior.kind`. `hitscan` → `HitscanSystem.fire()`. `charge` → tracks `isCharging`/`chargeElapsed`, fires on mouse-up. `splash` → `tryFire()` with cursor-derived `splashTarget` + dynamic `lifetimeOverride`. `ballistic` → `tryFire()` with pellet loop.
 - **Composite entity**: Tank = Position + Velocity + TankParts + Weapon + Health + Tag + (ArmorKit if armored). Infantry = Position + Velocity + InfantryParts + Weapon + Health + Tag. Enemies additionally have AIComponent.
 - **Scene-orchestrated**: Systems are stateless functions called from `GameplayScene.update()`, not engine-registered.
-- **Scene flow**: Menu → Gameplay → GameOver → (Gameplay or Menu). `SceneManager.switchTo()`.
+- **Scene flow**: Menu → Garage → Gameplay → GameOver → (Gameplay or Garage or Menu). `SceneManager.switchTo()`.
+- **Loadout composition**: `LoadoutParts` (serializable IDs) → `assembleLoadout()` → `TankDef`. P/W ratio = engine.power / totalWeight → clamps [0.3, 2.5] → scales movement stats. Additionally `engine.speedMult` scales top speed and `engine.accelMult` scales acceleration independently. `GameplayScene.init()` reads `getActiveLoadout()`.
+- **Terrain costs**: `TrackDef.terrainCosts: Record<TileId, number>` — per-tile speed multiplier. Applied in `updateTankMovement()` (player) and `FlowField.compute()` (AI pathfinding, weighted Dijkstra).
+- **Per-weapon visuals**: `TurretVisual` on `WeaponDef` maps each gun to its sprite. `TankDef.turret` derived from weapon. `shellSpriteKey` per weapon. Turret pivot formula: `drawImage top = -(height * pivotY)` so pivot lands at entity center (both `TankRenderer` and `TankPreview`).
+- **Track geometry**: `HullDef.trackOffsetX` is the authoritative track attachment distance from center — a **per-sprite visual constant**, not derived from `hull.width` (all source sprites are 256×256; body proportions vary independently). Tune by eye in the garage preview. `TrackDef` does not store spacing. `assembleLoadout()` copies `hull.trackOffsetX` into `TankDef.tracks.spacing`.
 - **Object pooling**: `ObjectPoolSystem` for projectile recycling (pool: `'projectile'`).
-- **Flow field AI**: Dijkstra BFS from player position. Direction vectors per walkable tile. Recomputes when player moves ≥2 tiles. All roles share one flow field; offset applied per-entity.
+- **Flow field AI**: Weighted Dijkstra (binary min-heap) from player position. Direction vectors per walkable tile. Recomputes when player moves ≥2 tiles. Accepts optional `TerrainCosts` for weighted edges. All roles share one flow field; offset applied per-entity.
 - **AI role system**: 4 roles (grunt/flanker/sniper/rusher) with distinct behaviors. Same FSM (IDLE/CHASE/ENGAGE), parameterized by `AIBehaviorProfile`. Flankers orbit, snipers camp far, rushers charge. `fireOnMove` allows shooting during CHASE.
 - **Profile resolution pipeline**: `resolveAIProfile(role, difficulty, waveIndex)` composes base profile × difficulty multipliers × wave scaling ± instance variance. Called once at spawn, result stored on `AIComponent`. Zero runtime overhead.
 - **Difficulty system**: Easy/Normal/Hard selected in MenuScene. Affects accuracy, reaction time, engage speed, fire rate via `DIFFICULTY_MODIFIERS`.
@@ -105,6 +118,7 @@ src/
 - **Bounce**: `ProjectileComponent.bouncesRemaining`. On tile hit, axis detected by comparing prev vs curr tile row/col; velocity reflected, `projectile:bounce` emitted, projectile continues.
 - **Howitzer dynamic lifetime**: At fire-time: `lifetimeOverride = dist(turretTip, cursor) / speed` (capped by `projectileLifetime`). Stored on `ProjectileComponent`.
 - **Weapon key edge detection**: Module-level `WEAPON_KEY_STATE: Set<string>` tracks which digit keys were down last frame. Cleared on scene init/destroy. Avoids holding a key switching weapons repeatedly.
+- **Mechanical weapon switching**: Key press starts a two-phase `stow → draw` transition. `WeaponComponent.switchPhase` ('none'|'stowing'|'drawing') + `switchElapsedMs` + `pendingDef`. During stow: barrel snaps back via large `recoilVelocity` kick (×`WEAPON_SWITCH_CONFIG.stowRecoilMult`); `weapon.def` unchanged. At stow→draw: def swaps, `recoilOffset` set to draw-start value (overdamped spring extends barrel forward). Fire blocked during both phases. Same-key mid-stow cancels; different-key mid-stow redirects; any key mid-draw restarts stow.
 - **AI stays ballistic-only**: AI always uses `behavior.kind === 'ballistic'` weapons. Hitscan/splash/charge are player-only.
 - **UnitClass weapon restriction**: `WeaponDef.unitClass: 'any'|'tank'|'infantry'`. Enforced at fire-time — `updateWeapons()` skips non-matching entities. Heavy Cannon/Howitzer/Laser/Railgun are `'tank'`; infantry weapons are `'infantry'`.
 - **Infantry animation**: `InfantryPartsComponent` drives state (`idle/walk/run/shot/reload/hurt/dead`). `updateInfantryVFXState()` ticks timers + advances sprite sheet frame. Shot priority overrides movement state.
@@ -138,11 +152,11 @@ src/
 ## Assets
 
 Individual PNGs in `public/sprites/`:
-- `hulls/` — Hull_01
-- `tracks/` — Track_1_A
-- `weapons/` — Gun_01
-- `tiles/` — Ground tiles, Block, Hedge, Container, Wall
-- `effects/` — Medium_Shell, muzzle flash (4), impact (4), explosion (9)
+- `hulls/` — Hull_01..08 (8 hulls, all 256x256)
+- `tracks/` — Track_1..4_A/B (8 tracks, all 42x246)
+- `weapons/` — Gun_01..08 (8 guns, varying sizes)
+- `tiles/` — Ground tiles (5 ground + Snow + Water), Block, Hedge, Container, Wall
+- `effects/` — 7 shell types (Medium/Light/Heavy/Sniper/Grenade/Shotgun/Plasma) + Laser, muzzle flash (4), impact (4), explosion (9)
 - `coins/` — Gold_1..8.png (8-frame spin loop)
 - `icons/` — 13 `*_Bonus/*_Debuff.png` (world drops, 128x128), 9 `*_Icon.png` (HUD status), Coin_A/B.png
 - `infantry/Soldier_1/` — Idle, Walk, Run, Shot_1, Recharge, Hurt, Dead (MG unit)
@@ -153,6 +167,6 @@ Source: craftpix packs in `~/Downloads/craftpix/2d_tank_topdown/`; icons from `c
 
 ## Engine Usage
 
-Uses: Engine, CanvasRenderer, UnifiedInput, AssetManager, SceneManager, CameraSystem, GridModel, ComponentFactory, ObjectPoolSystem, EventBus, ParticleBurst, FrameAnimator, ProgressBar, Button, SlowMotion.
+Uses: Engine, CanvasRenderer, UnifiedInput, AssetManager, SceneManager, CameraSystem, GridModel, ComponentFactory, ObjectPoolSystem, EventBus, ParticleBurst, FrameAnimator, ProgressBar, Button, SlowMotion, LocalStorageAdapter.
 
 Does NOT use: SimplePhysics, CollisionSystem, TweenSystem, Juice, ScoreSystem.

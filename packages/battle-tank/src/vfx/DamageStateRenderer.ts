@@ -1,4 +1,4 @@
-import type { EntityManager, HealthComponent } from '@speedai/game-engine';
+import type { EntityManager, HealthComponent, AssetManager } from '@speedai/game-engine';
 import { ParticleBurst } from '@speedai/game-engine';
 import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
@@ -44,7 +44,7 @@ export class DamageStateRenderer {
       const tank = em.getComponent(id, TANK_PARTS) as TankPartsComponent | undefined;
       if (!pos || !tank) continue;
 
-      const jitterX = (Math.random() - 0.5) * tank.hullWidth  * 0.5;
+      const jitterX = (Math.random() - 0.5) * tank.hullHeight * 0.5;
       const jitterY = (Math.random() - 0.5) * tank.hullHeight * 0.5;
 
       if (ratio < COMBAT_CONFIG.damageStates.heavySmoke) {
@@ -74,7 +74,7 @@ export class DamageStateRenderer {
   }
 
   /** Draw cracked hull tint below cracked threshold. Called in world space after tank draw. */
-  drawHullTint(ctx: CanvasRenderingContext2D, em: EntityManager): void {
+  drawHullTint(ctx: CanvasRenderingContext2D, em: EntityManager, assets: AssetManager): void {
     const ids = em.query('Position', TANK_PARTS, 'Health');
     for (const id of ids) {
       const health = em.getComponent(id, 'Health') as HealthComponent | undefined;
@@ -87,11 +87,16 @@ export class DamageStateRenderer {
       const tank = em.getComponent(id, TANK_PARTS) as TankPartsComponent | undefined;
       if (!pos || !tank) continue;
 
+      const hullImg = assets.getImage(tank.hullKey) as HTMLImageElement | undefined;
+      const hullDisplayW = hullImg && hullImg.naturalHeight > 0
+        ? hullImg.naturalWidth / hullImg.naturalHeight * tank.hullHeight
+        : tank.hullHeight;
+
       ctx.save();
       ctx.translate(pos.x, pos.y);
       ctx.rotate(tank.hullAngle);
       ctx.fillStyle = COMBAT_CONFIG.crackedTint;
-      ctx.fillRect(-tank.hullWidth / 2, -tank.hullHeight / 2, tank.hullWidth, tank.hullHeight);
+      ctx.fillRect(-hullDisplayW / 2, -tank.hullHeight / 2, hullDisplayW, tank.hullHeight);
       ctx.restore();
     }
   }

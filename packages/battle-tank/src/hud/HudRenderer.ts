@@ -77,8 +77,25 @@ export class HudRenderer {
     textY += 16;
     ctx.fillText(`\u2620 ${state.kills}`, textX, textY);
 
-    // Weapon name
-    if (state.weaponName) {
+    // Weapon name / switch progress
+    if (state.switchProgress) {
+      const { ratio, phase, pendingName } = state.switchProgress;
+      textY += 16;
+      // Dim during stow; brighter during draw
+      ctx.fillStyle = phase === 'stowing' ? '#667' : '#9be';
+      const label = phase === 'stowing'
+        ? `\u25ba ${pendingName}\u2026`
+        : `\u25ba ${state.weaponName ?? pendingName}`;
+      ctx.fillText(label, textX, textY);
+      // Progress bar: yellow=stowing, green=drawing
+      const barW = 80;
+      const barH = 3;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(textX, textY + 3, barW, barH);
+      ctx.fillStyle = phase === 'stowing' ? '#cc8' : '#6c8';
+      ctx.fillRect(textX, textY + 3, barW * ratio, barH);
+      textY += barH + 1;
+    } else if (state.weaponName) {
       textY += 16;
       ctx.fillStyle = '#adf';
       ctx.fillText(`\u25ba ${state.weaponName}`, textX, textY);

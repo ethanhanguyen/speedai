@@ -774,3 +774,348 @@ Click-fire laser was identical in feel to a fast cannon. No resource to manage, 
 | `CombatConfig.laserBeam.barrelTintColor` | Hull tint color while firing |
 | `CombatConfig.laserBeam.overheatVignetteMaxAlpha` | Screen edge glow peak alpha |
 | `CombatConfig.laserHeatBar.*` | Heat bar position, colors, flash rate |
+
+---
+
+## Phase 5: Garage & Loadouts — COMPLETE
+
+**Gate**: Open Garage, swap hull/engine/tracks/gun/armor. See stats update. Deploy into Survival with chosen loadout.
+
+### What's Built
+
+| File | Purpose |
+|------|---------|
+| `config/PartRegistry.ts` | HullDef (8), EngineDef (4), TrackDef (4, with TerrainCosts), ArmorPartDef (4), LoadoutParts, RadarStats; `assembleLoadout()` → TankDef via P/W ratio; `computeRadarStats()`, `computeTotalWeight()`, `getLoadoutTerrainCosts()` |
+| `config/GarageConfig.ts` | `GARAGE_LAYOUT` pixel rects, `GARAGE_STYLE` colors/fonts, `SLOT_CATEGORIES`, `SLOT_LABELS`, `FLAVOR_TEXT` |
+| `systems/LoadoutSystem.ts` | Module-level active loadout (get/set); `LocalStorageAdapter` persistence (3 slots: save/load/has/delete) |
+| `garage/RadarChart.ts` | `drawRadarChart()` — 6-axis radar (SPD/ACC/FPW/ROF/ARM/HND), grid rings, current + hover polygons |
+| `garage/WeightBar.ts` | `drawWeightBar()` — gradient bar + overload pulse + P/W text |
+| `garage/CompareStrip.ts` | `drawCompareStrip()` — stat deltas (▲ green / ▼ red / — neutral) + flavor text |
+| `garage/TankPreview.ts` | `drawTankPreview()` — renders tracks → hull → turret from loadout parts at angle/scale |
+| `scenes/GarageScene.ts` | Full garage: preview (drag-rotate), category tabs, card strip (scroll), radar, weight, compare, 3 save/load slots, deploy/back |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `config/WeaponConfig.ts` | Added `TurretVisual`, `turret: TurretVisual`, `weight: number` to `WeaponDef`; per-weapon turret sprites (Gun_01-08) and shell sprites |
+| `config/TankConfig.ts` | `TankDef.turret` now `TurretVisual`; all defs derive turret from `weapon.turret` |
+| `tilemap/types.ts` | Extended `TileId` with MUD, SAND, ICE, WATER, PUDDLE |
+| `tilemap/TileRegistry.ts` | Added `TileTint` interface; 5 new terrain entries (tint overlays for mud/sand/puddle); new char codes (m/a/i/w/p) |
+| `tilemap/TilemapRenderer.ts` | Tint overlay rendering after base sprite draw |
+| `maps/survival_01.ts` | Updated 24x18 map with terrain variety (water/ice/mud/sand/puddle) |
+| `ai/FlowField.ts` | BFS → weighted Dijkstra with binary min-heap; optional `TerrainCosts` param |
+| `systems/TankMovementSystem.ts` | Added optional `tilemap` + `terrainCosts` params; terrain speed multiplier from tile under tank |
+| `scenes/GameplayScene.ts` | Uses `assembleLoadout(getActiveLoadout())` for player tank; passes terrain costs to movement + flow field |
+| `scenes/MenuScene.ts` | PLAY → Garage (was Gameplay) |
+| `scenes/GameOverScene.ts` | Added GARAGE button (3-button row) |
+| `main.ts` | Registers GarageScene; loads 7 hulls, 7 tracks, 7 guns, 7 shells, 2 tile sprites |
+
+### Part Registries
+
+**Hulls** (8): Scout (80 HP, wt 8), Vanguard (100, 12), Enforcer (130, 16), Sentinel (150, 20), Juggernaut (200, 28), Phantom (70, 6), Reaper (110, 14), Titan (250, 34)
+
+**Engines** (4): Light (60 pwr, wt 4), Standard (100, 8), Heavy (160, 14), Turbo (200, 10)
+
+**Tracks** (4): Narrow Steel (handling 0.7), Wide Rubber (0.85), Spiked Treads (0.6), Hover Pads (0.95) — each with unique TerrainCosts per TileId
+
+**Guns** (5 player): Medium Cannon (wt 10), Heavy Cannon (18), Howitzer (20), Laser (14), Railgun (16)
+
+**Armor** (4): None (wt 0), Reactive (10), Composite (14), Cage (8)
+
+### P/W Ratio System
+
+```
+totalWeight = hull + engine + track + gun + armor
+pwRatio = clamp(engine.power / totalWeight, 0.3, 2.5)
+maxForwardSpeed = BASE_FORWARD_SPEED × pwRatio   (BASE = 150 px/s)
+acceleration    = BASE_ACCELERATION × pwRatio     (BASE = 300 px/s²)
+turnRate        = BASE_TURN_RATE × track.handling  (BASE = π rad/s)
+```
+
+### Terrain Cost System
+
+Each `TrackDef` has `terrainCosts: Record<TileId, number>` — multiplier on speed (1.0 = normal, <1 = penalty).
+- `TankMovementSystem`: reads tile under tank center → applies multiplier to maxSpeed
+- `FlowField.compute()`: edge cost = `1.0 / terrainMultiplier` (lower speed → higher traversal cost)
+- Synthetic terrains (mud/sand/puddle) use tint overlays over base sprites; ice/water have dedicated sprites
+
+### Scene Flow
+
+```
+Menu → Garage → Gameplay → GameOver → (Gameplay | Garage | Menu)
+```
+
+### Decisions Made
+
+- **Zero engine modifications** — `LocalStorageAdapter`, `Button`, `GridModel` already existed.
+- **P/W ratio, not flat stats** — single parameter (power/weight) drives all movement. Intuitive cause-and-effect.
+- **Terrain costs on TrackDef, not global** — different tracks handle terrain differently. Hover Pads ignore water, Spiked Treads handle ice.
+- **Tint overlays for synthetic terrains** — mud/sand/puddle reuse base tile sprites + `ctx.fillRect` overlay. Avoids needing dedicated sprite per terrain.
+- **FlowField → weighted Dijkstra** — inline binary min-heap (~30 lines). Edge cost = inverse terrain multiplier. Falls back to uniform cost when no terrain costs provided.
+- **`TurretVisual` on WeaponDef** — each weapon owns its turret sprite. No separate turret registry needed.
+- **Canvas UI (no DOM)** — card strip with clipping, drag-scroll, hover compare. Consistent with existing scenes.
+- **3 save slots** — `LocalStorageAdapter` with prefix `battletank_loadout_N`.
+
+### Config Surface (new in Phase 5)
+
+| Config | Controls |
+|--------|----------|
+| `PartRegistry.HULL_REGISTRY[id].*` | Per-hull HP, weight, collision radius, display size |
+| `PartRegistry.ENGINE_REGISTRY[id].*` | Per-engine power + weight |
+| `PartRegistry.TRACK_REGISTRY[id].*` | Per-track handling, weight, terrainCosts per TileId |
+| `PartRegistry.ARMOR_REGISTRY[id].*` | Per-armor weight (damage multipliers in ArmorConfig) |
+| `PartRegistry.DEFAULT_LOADOUT` | Starting loadout IDs |
+| `PartRegistry.OVERLOAD_PW_THRESHOLD` | P/W below this shows overload warning (0.5) |
+| `GarageConfig.GARAGE_LAYOUT.*` | Pixel positions/sizes for all UI elements |
+| `GarageConfig.GARAGE_STYLE.*` | Colors, fonts, radar config |
+| `GarageConfig.FLAVOR_TEXT[partId]` | Tooltip descriptions per part |
+| `WeaponDef.turret.*` | Per-weapon turret sprite + dimensions |
+| `WeaponDef.weight` | Per-weapon weight |
+| `TileRegistry.TileTint` | Overlay color + alpha for synthetic terrains |
+
+### Asset Inventory (new in Phase 5)
+
+**Hulls**: `hull-02..08` → `Hull_02..08.png` (7 new, 256x256)
+**Tracks**: `track-1b`, `track-2a/2b`, `track-3a/3b`, `track-4a/4b` → `Track_*_A/B.png` (7 new, 42x246)
+**Guns**: `gun-02..08` → `Gun_02..08.png` (7 new, varying sizes)
+**Shells**: `light-shell`, `heavy-shell`, `sniper-shell`, `grenade-shell`, `shotgun-shells`, `plasma`, `laser-beam` (7 new, 128x128)
+**Tiles**: `ground-snow` → `Ground_Tile_Snow_1.png`, `ground-water` → `Ground_Tile_Water_1.png` (2 new)
+
+---
+
+## Phase 5.1 — Garage Refinements
+
+**Gun centroid fix** (`TankPreview.ts`): Removed incorrect `pivotOffsetY` formula; turret now drawn as `top = -(h * pivotY)` so pivot lands exactly at tank center. Matches `TankRenderer.ts` gameplay formula.
+
+**Track attachment** (`PartRegistry.ts`, `TankConfig.ts`, `TankPreview.ts`): `spacing` removed from `TrackDef`; `trackOffsetX` added to `HullDef` (≈ hull.width/2 − 1, flush with hull edge). Tracks now attach correctly for all hull sizes (26–32px range vs old constant 22). `assembleLoadout()` passes `hull.trackOffsetX` as `TankDef.tracks.spacing`. Hardcoded AI tanks updated to 27 (hull-01, 56px).
+
+**Engine trade-offs** (`PartRegistry.ts`): Added `speedMult`/`accelMult` to `EngineDef`. Breaks P/W cap homogeneity — light hulls with Turbo no longer identical to Standard. Trade-offs: Light = responsive/slow-top; Standard = balanced; Heavy = raw horsepower/sluggish; Turbo = highest top speed/turbo lag. `assembleLoadout()` applies both multipliers independently.
+
+**Hull differentiation** (`PartRegistry.ts`): Phantom HP 70→55, weight 6→5 (extreme glass cannon). Scout HP 80→95 (reliable entry-level fast hull). Clear risk/reward split.
+
+**ARM normalization** (`PartRegistry.ts`): Replaced hardcoded floor `0.3` with `ARMOR_NORM_FLOOR` derived from actual `ARMOR_TABLE` minimum avgMult. Best armor (composite) now maps to 1.0 ARM on radar; no armor = 0. Scale auto-adjusts when new kits are added.
+
+---
+
+## Phase 5.2 — Tile Transition Fix
+
+**Problem**: Transitions drew a semi-opaque flat-color rectangle (`blendColor`) over tile sprites. GRASS→DIRT showed a brown wash, not a texture blend.
+
+**Fix**: Sprite-based alpha masking via `OffscreenCanvas` + `destination-in` compositing. The neighbor's actual texture is faded in at the seam edge. Extended from 4 cardinal to 8 directions (added NE/NW/SE/SW corner blends with radial gradients).
+
+| File | Change |
+|------|--------|
+| `config/MapConfig.ts` | Added `tileTransitionMaxAlpha` (peak seam opacity, replaces implicit color alpha) |
+| `tilemap/TileRegistry.ts` | Removed `blendColor` from `TileDef`; no longer needed |
+| `tilemap/TilemapRenderer.ts` | 8-dir sprite-blend loop; `OffscreenCanvas(ts,ts)` cached module-level; `destination-in` gradient masking |
+
+**Config surface**: `MAP_CONFIG.tileTransitionMaxAlpha` (default `0.88`), `MAP_CONFIG.tileTransitionWidth` (unchanged, controls strip/corner size).
+
+---
+
+## Phase 5.3 — Mechanical Weapon Switching
+
+**Gate**: Pressing a weapon key starts a two-phase transition (stow → draw) with barrel animation. Can't fire during switch.
+
+### State machine
+
+```
+none → (key press) → stowing → (switchOutMs) → drawing → (switchInMs) → none
+```
+
+| Phase | What happens |
+|-------|-------------|
+| **stowing** | Large recoil kick on current barrel (snap back). `weapon.def` unchanged — turret still shows current gun. |
+| **def swap** | At stow→draw boundary: `weapon.def = pendingDef`, barrel set to draw-start offset. |
+| **drawing** | Overdamped spring decays offset → 0 (barrel extends forward). |
+| **ready** | `switchPhase = 'none'`, fire enabled. |
+
+### Edge cases
+
+| Input during switch | Result |
+|--------------------|--------|
+| Same key mid-stow | Cancel — return to current weapon |
+| Different key mid-stow | Redirect — update `pendingDef`, restart stow timer |
+| Any key mid-draw | Abort draw, begin stowing new weapon |
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `config/WeaponConfig.ts` | `switchOutMs` + `switchInMs` on `WeaponDef`; `WEAPON_SWITCH_CONFIG` (`stowRecoilMult`, `drawOffsetMult`, `drawMinOffsetPx`) |
+| `components/Weapon.ts` | `switchPhase: WeaponSwitchPhase`, `switchElapsedMs`, `pendingDef` |
+| `tank/TankAssembler.ts` | Init new fields |
+| `tank/InfantryAssembler.ts` | Init new fields |
+| `combat/WeaponSystem.ts` | `beginStow()` helper; key-press block drives state machine; advance phase each frame; blocks fire during switch |
+| `config/GameStateTypes.ts` | `switchProgress?: { ratio, phase, pendingName }` on `GameHUDState` |
+| `scenes/GameplayScene.ts` | Computes `switchProgress` from weapon component |
+| `hud/HudRenderer.ts` | Shows `→ pendingName…` (stowing=dim) or active name (drawing=bright) + progress bar (yellow=stow, green=draw) |
+
+### Config surface
+
+| Config | Controls |
+|--------|----------|
+| `WeaponDef.switchOutMs` | Time to retract current barrel (ms). Range: 160 (infantry) – 560 (railgun) |
+| `WeaponDef.switchInMs` | Time to extend new barrel (ms). Range: 180 – 640 |
+| `WEAPON_SWITCH_CONFIG.stowRecoilMult` | Stow kick = `recoilPx × mult / 0.016` velocity units |
+| `WEAPON_SWITCH_CONFIG.drawOffsetMult` | Draw start = `recoilPx × mult` px behind rest |
+| `WEAPON_SWITCH_CONFIG.drawMinOffsetPx` | Floor on draw offset (for low-recoil weapons like Laser) |
+
+### Decisions made
+
+- **Reuse existing spring-damper** (`recoilOffset`/`recoilVelocity` in `TankPartsComponent`) — zero new render code; animation is free.
+- **Stow kick = velocity** → peak offset ≈ `recoilPx × stowRecoilMult` (same derivation as fire recoil). Heavy guns retract more dramatically.
+- **Draw kick = offset** (`recoilOffset = drawOffset; recoilVelocity = 0`) → overdamped spring (damping=1.4) slides barrel forward without oscillation. New weapon's `recoilSpring` controls draw snap speed.
+- **Def swap at stow→draw boundary** — old turret sprite stays visible while retracting; new sprite appears when barrel is already behind hull (minimises jarring swap).
+- **No engine changes.**
+
+### Bug Fixes (post-implementation)
+
+| Fix | Root Cause | Solution |
+|-----|-----------|----------|
+| Turret sprite never changes on switch | `weapon.def` was swapped at stow→draw boundary but `TankPartsComponent.turretKey/Width/Height/PivotY` were never updated; renderer reads those stale fields | Copy `weapon.def.turret.*` into `tank.*` immediately after def swap in `WeaponSystem.ts` |
+| Keys 6–8 unreachable | `WEAPON_SWITCH_KEYS` only declared `Digit1`–`Digit5` (5 entries) despite 8 player weapons | Extended to `Digit1`–`Digit8` |
+
+---
+
+## Phase 5.4: Armor Deflection System — COMPLETE
+
+**Gate**: Kinetic rounds ricochet off angled armor. Front hull is harder than rear. Heavy weapons overmatch regardless.
+
+### What's Built
+
+| File | Purpose |
+|------|---------|
+| `config/ArmorConfig.ts` | `ArmorZoneDef`, `DeflectionDef`, `ArmorKitDef`, `ARMOR_KIT_DEFS` (4 kits × zone multipliers + ricochet rules) |
+| `combat/EntityDamageSystem.ts` | Zone lookup + angle-of-incidence + ricochet gate before HP deduction |
+| `vfx/VFXManager.ts` | `projectile:deflected` → silver `ParticleBurst` + "RICO" floating label |
+| `config/CombatConfig.ts` | `deflection.ricochetParticles` + label text/color |
+
+### Mechanics
+
+**Three-layer pipeline** (applied in order, `projectile:hit:entity` path only; splash is unaffected):
+
+```
+1. Zone mult   — where on hull the shell lands (front < side < rear)
+2. Ricochet    — kinetic + glancing (incidence > threshold) + below overmatch → zero damage
+3. Final eff   = baseDamage × ARMOR_TABLE[kit][type] × zoneMult × buffMods
+```
+
+**Zone detection**:
+```
+outwardNormal = atan2(hitY − tankCY, hitX − tankCX)
+frontDiff     = |wrap(outwardNormal − (hullAngle − π/2))|
+zone = front  if frontDiff < frontArcDeg°
+       rear   if frontDiff > 180° − rearArcDeg°
+       side   otherwise
+```
+
+**Incidence angle** (0°=head-on, 90°=glancing):
+```
+incidenceRad = |wrap(projAngle − (outwardNormal + π))|
+incidenceRad -= normalizationDeg  (kinetic only, clamp ≥ 0)
+```
+
+**Ricochet condition** (all three must hold):
+1. `damageType === 'kinetic'`
+2. `weapon.damage < kit.deflection.overmatchDamage`
+3. `incidenceRad > kit.deflection.ricochetAngleDeg × π/180`
+
+### Per-Kit Values
+
+| Kit | frontMult | sideMult | rearMult | ricochetAngle | overmatch | normalize |
+|-----|-----------|----------|----------|---------------|-----------|-----------|
+| none | 0.90 | 1.00 | 1.20 | 72° | 60 | 3° |
+| reactive | 0.80 | 1.00 | 1.30 | 70° | 65 | 3° |
+| composite | 0.70 | 0.85 | 1.10 | 65° | 70 | 5° |
+| cage | 0.85 | 0.95 | 1.20 | 68° | 50 | 2° |
+
+Heavy Cannon (80 dmg) overmatches cage. Railgun (100 dmg) overmatches all kits. Machine gun (8 dmg) ricochets off composite front at steep angles.
+
+### Decisions Made
+
+- **Splash path unchanged** — explosions engulf from all angles; no ricochet gate on `splash:entity:hit`.
+- **Energy/explosive never ricochet** — `dmgType === 'kinetic'` guard. Laser and Howitzer always penetrate.
+- **`hullAngle - π/2` conversion** — maps 0=up game convention to screen atan2 convention. Same formula for tanks and infantry (`facingAngle`).
+- **Ricochet fires `projectile:deflected` then returns** — projectile already consumed by `EntityCollisionSystem`; returning early skips all HP/stagger/event logic.
+- **No engine changes.**
+
+### Config Surface (new in Phase 5.4)
+
+| Config | Controls |
+|--------|----------|
+| `ArmorConfig.ARMOR_KIT_DEFS[kit].zones.*` | Per-kit zone multipliers + arc angles |
+| `ArmorConfig.ARMOR_KIT_DEFS[kit].deflection.ricochetAngleDeg` | Glancing angle threshold per kit |
+| `ArmorConfig.ARMOR_KIT_DEFS[kit].deflection.overmatchDamage` | Damage floor to bypass deflection |
+| `ArmorConfig.ARMOR_KIT_DEFS[kit].deflection.normalizationDeg` | AP self-orientation benefit per kit |
+| `CombatConfig.deflection.ricochetParticles.*` | Silver spark burst params |
+| `CombatConfig.deflection.ricochetLabelText/Color` | "RICO" floating text appearance |
+
+---
+
+## Phase 5.5: Pivot-Sweep Weapon Switch Animation — COMPLETE
+
+**Gate**: Weapon switching uses a deliberate angular pivot sweep instead of a recoil-axis animation.
+
+### Problem Fixed
+
+Phase 5.3 used barrel recoil (spring-damper along barrel axis) as the primary stow animation. Recoil is an involuntary Newton-3rd reaction from propellant gas — using it for a deliberate equipment swap conflated two mechanically distinct events into one identical feel.
+
+### What Changed
+
+| Area | Before | After |
+|------|--------|-------|
+| **Stow primary motion** | Recoil kick along barrel axis (same as firing) | Turret sweeps `switchPivotDeg` degrees off aim (smoothstep curve) |
+| **Draw primary motion** | Spring extends barrel forward | Turret returns from pivot to aim (ease-out quadratic) + barrel spring settle |
+| **Stow recoil** | `stowRecoilMult = 2.0` (dominant) | `stowRecoilMult = 0.8` (complementary snap only) |
+| **Easing** | Spring (same feel for both phases) | Stow = smoothstep (mechanical traversal); Draw = ease-out (settling) |
+
+### Two-Axis Animation
+
+```
+Stow:  pivot sweeps off aim (smoothstep)  +  small barrel snap kick
+Draw:  pivot returns to aim (ease-out)    +  barrel spring extends
+```
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `config/WeaponConfig.ts` | `switchPivotDeg` on `WeaponDef`; `pivotDir` on `WEAPON_SWITCH_CONFIG`; `stowRecoilMult` 2.0 → 0.8 |
+| `tank/TankParts.ts` | `turretSwitchAngle: number` — additive offset on turret aim angle |
+| `tank/TankAssembler.ts` | Init `turretSwitchAngle: 0` |
+| `combat/WeaponSystem.ts` | `beginStow()` resets angle; stow advances smoothstep; draw advances ease-out; cancel/redirect reset to 0 |
+| `tank/TankRenderer.ts` | `drawAngle = turretAngle + turretSwitchAngle` |
+
+### Config Surface (new)
+
+| Config | Controls |
+|--------|----------|
+| `WeaponDef.switchPivotDeg` | Degrees swept during stow/draw (per weapon; heavy guns sweep more) |
+| `WEAPON_SWITCH_CONFIG.pivotDir` | 1 = CW sweep, −1 = CCW |
+| `WEAPON_SWITCH_CONFIG.stowRecoilMult` | Complementary snap magnitude (reduced from 2.0 to 0.8) |
+
+### Per-Weapon Values
+
+| Weapon | `switchPivotDeg` |
+|--------|-----------------|
+| Medium Cannon | 20° |
+| Machine Gun (GUN_02) | 15° |
+| Heavy Cannon | 40° |
+| Rifled Gun | 22° |
+| Howitzer | 45° |
+| Laser | 25° |
+| Shotgun (GUN_07) | 18° |
+| Railgun | 35° |
+| Sniper Cannon (AI) | 25° |
+| Autocannon (AI) | 18° |
+| Machine Gun (AI) | 18° |
+| Infantry MG/Shotgun/Rifled | 12°–16° |
+
+### Decisions Made
+
+- **Smoothstep stow, ease-out draw** — different curves give each phase a distinct mechanical character. Spring is reserved for fire recoil only.
+- **`turretSwitchAngle` is additive** — composable with `turretAngle`; zero overhead when `switchPhase === 'none'` (renderer still reads 0).
+- **Reset on cancel/redirect** — angle snaps to 0 so a mid-switch correction doesn't visually compound.
+- **No engine changes.**

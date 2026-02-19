@@ -83,6 +83,14 @@ export interface ShakeDef {
   buildup?: { rampPerSec: number; maxIntensity: number };
 }
 
+/** Turret/barrel visual paired with this weapon. */
+export interface TurretVisual {
+  spriteKey: string;
+  width: number;       // display px
+  height: number;      // display px
+  pivotY: number;      // 0–1, pivot from top of turret sprite
+}
+
 export type UnitClass = 'any' | 'tank' | 'infantry';
 
 export interface WeaponDef {
@@ -114,7 +122,40 @@ export interface WeaponDef {
   trailConfig?: TrailConfig;
   /** World-space reload arc drawn at muzzle tip (slow weapons: fireRate ≤ 1). */
   loadingRing?: LoadingRingDef;
+  /** Turret/barrel visual for this weapon. Used by garage + assembleLoadout(). */
+  turret: TurretVisual;
+  /** Weight in abstract units. Contributes to total loadout weight → P/W ratio. */
+  weight: number;
+  /** ms to stow (retract) the current weapon barrel before swapping. */
+  switchOutMs: number;
+  /** ms to draw (extend) the new weapon barrel before it's ready to fire. */
+  switchInMs: number;
+  /**
+   * Degrees the turret sweeps away from aim angle during stow (pivot motion).
+   * Distinct from recoil: this is a deliberate lateral traversal, not a fire reaction.
+   * Larger = more dramatic stow sweep. Direction controlled by WEAPON_SWITCH_CONFIG.pivotDir.
+   */
+  switchPivotDeg: number;
 }
+
+/**
+ * Tuning constants for the mechanical weapon-switch animation.
+ * stowRecoilMult   — stow snap kick = weapon.recoilPx × mult / 0.016 (complementary, not primary).
+ * drawOffsetMult   — draw starts barrel = weapon.recoilPx × mult px behind rest.
+ * drawMinOffsetPx  — floor on draw start offset (for low-recoil weapons like Laser).
+ * pivotDir         — 1 = clockwise sweep during stow, −1 = counter-clockwise.
+ */
+export const WEAPON_SWITCH_CONFIG = {
+  stowRecoilMult:       0.8,
+  drawOffsetMult:       1.8,
+  drawMinOffsetPx:      10,
+  /** Direction of turret pivot sweep during stow (1 = CW, −1 = CCW). */
+  pivotDir:             1 as 1 | -1,
+  /** Fraction of switchOutMs over which turret alpha decays 1→0. */
+  turretFadeOutFraction: 0.85,
+  /** Fraction of switchInMs over which turret alpha rises 0→1. */
+  turretFadeInFraction:  0.45,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Shared muzzle flash animation sets
@@ -136,6 +177,9 @@ const MUZZLE_FLASH_HEAVY: MuzzleFlashDef = {
 
 // ---------------------------------------------------------------------------
 // Weapon definitions — GUN_01 through GUN_08 (player weapons, keys 1–8)
+// Source sprite sizes: Gun_01=94x212 Gun_02=86x228 Gun_03=66x176
+//   Gun_04=94x191 Gun_05=76x194 Gun_06=71x164 Gun_07=86x218 Gun_08=81x177
+// Display sizes scaled to ~20-24 width, height proportional.
 // ---------------------------------------------------------------------------
 
 /** Gun_01 — Medium Cannon. Balanced starter. */
@@ -159,6 +203,11 @@ export const GUN_01: WeaponDef = {
   recoilSpring: 280,
   hitStaggerPx: 12,
   tracerStyle: { color: '#ffd040', length: 20, width: 2 },
+  turret: { spriteKey: 'gun-01', width: 20, height: 46, pivotY: 0.8 },
+  weight: 10,
+  switchOutMs:    280,
+  switchInMs:     320,
+  switchPivotDeg: 20,
 };
 
 /** Gun_02 — Machine Gun. Infantry only. */
@@ -169,7 +218,7 @@ export const GUN_02: WeaponDef = {
   fireRate: 8,
   projectileSpeed: 350,
   projectileLifetime: 1.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'light-shell',
   shellWidth: 5,
   shellHeight: 12,
   muzzleFlash: { ...MUZZLE_FLASH_A, fps: 30, width: 24, height: 24 },
@@ -186,6 +235,11 @@ export const GUN_02: WeaponDef = {
   recoilSpring: 400,
   hitStaggerPx: 4,
   tracerStyle: { color: '#ff9900', length: 12, width: 1.5 },
+  turret: { spriteKey: 'gun-02', width: 18, height: 48, pivotY: 0.8 },
+  weight: 6,
+  switchOutMs:    200,
+  switchInMs:     220,
+  switchPivotDeg: 15,
 };
 
 /** Gun_03 — Heavy Cannon. Slow, powerful, knockback. */
@@ -196,7 +250,7 @@ export const GUN_03: WeaponDef = {
   fireRate: 0.5,
   projectileSpeed: 500,
   projectileLifetime: 2.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'heavy-shell',
   shellWidth: 12,
   shellHeight: 22,
   muzzleFlash: MUZZLE_FLASH_HEAVY,
@@ -214,6 +268,11 @@ export const GUN_03: WeaponDef = {
     particles: { count: 2, speed: 18, size: 4, colors: ['#888', '#aaa', '#666'], lifetime: 0.9 },
   },
   loadingRing: { radiusPx: 10, lineWidth: 2, color: '#ff8800', readyColor: '#ffffff' },
+  turret: { spriteKey: 'gun-03', width: 14, height: 38, pivotY: 0.8 },
+  weight: 18,
+  switchOutMs:    450,
+  switchInMs:     520,
+  switchPivotDeg: 40,
 };
 
 /** Gun_04 — Rifled Gun. Infantry only. */
@@ -238,6 +297,11 @@ export const GUN_04: WeaponDef = {
   hitStaggerPx: 14,
   tracerStyle: { color: '#ffffff', glowColor: '#aaaaff', glowBlur: 6, length: 18, width: 2 },
   loadingRing: { radiusPx: 8, lineWidth: 1.5, color: '#aaaaff', readyColor: '#ffffff' },
+  turret: { spriteKey: 'gun-04', width: 20, height: 41, pivotY: 0.8 },
+  weight: 9,
+  switchOutMs:    250,
+  switchInMs:     280,
+  switchPivotDeg: 22,
 };
 
 /** Gun_05 — Howitzer. Slow arcing shell, 120px AoE on impact. */
@@ -248,7 +312,7 @@ export const GUN_05: WeaponDef = {
   fireRate: 0.4,
   projectileSpeed: 220,
   projectileLifetime: 4, // overridden per-shot based on cursor distance
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'grenade-shell',
   shellWidth: 14,
   shellHeight: 14,
   muzzleFlash: MUZZLE_FLASH_HEAVY,
@@ -266,6 +330,11 @@ export const GUN_05: WeaponDef = {
     particles: { count: 2, speed: 14, size: 5, colors: ['#ff4400', '#ff8800', '#ffcc00'], lifetime: 0.7 },
   },
   loadingRing: { radiusPx: 12, lineWidth: 2, color: '#ff4400', readyColor: '#ffff00' },
+  turret: { spriteKey: 'gun-05', width: 16, height: 42, pivotY: 0.8 },
+  weight: 20,
+  switchOutMs:    520,
+  switchInMs:     600,
+  switchPivotDeg: 45,
 };
 
 /** Gun_06 — Laser. Hold-to-fire continuous beam with heat management. damage = DPS. */
@@ -276,7 +345,7 @@ export const GUN_06: WeaponDef = {
   fireRate: 1,           // unused in continuous mode
   projectileSpeed: 0,    // unused — hitscan
   projectileLifetime: 0, // unused — hitscan
-  shellSpriteKey: 'medium-shell', // unused — no projectile spawned
+  shellSpriteKey: 'laser-beam',  // unused — no projectile spawned
   shellWidth: 0,
   shellHeight: 0,
   muzzleFlash: { ...MUZZLE_FLASH_A, fps: 30, width: 36, height: 36 },
@@ -305,6 +374,11 @@ export const GUN_06: WeaponDef = {
   recoilSpring: 300,
   hitStaggerPx: 6,
   tracerStyle: { color: '#00e5ff', length: 0, width: 0 }, // hitscan — tracer unused
+  turret: { spriteKey: 'gun-06', width: 15, height: 35, pivotY: 0.8 },
+  weight: 14,
+  switchOutMs:    300,
+  switchInMs:     360,
+  switchPivotDeg: 25,
 };
 
 /** Gun_07 — Shotgun. Infantry only. */
@@ -315,7 +389,7 @@ export const GUN_07: WeaponDef = {
   fireRate: 1.5,
   projectileSpeed: 500,
   projectileLifetime: 0.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'shotgun-shells',
   shellWidth: 5,
   shellHeight: 10,
   muzzleFlash: { ...MUZZLE_FLASH_A, width: 40, height: 40 },
@@ -334,6 +408,11 @@ export const GUN_07: WeaponDef = {
   recoilSpring: 220,
   hitStaggerPx: 10,
   tracerStyle: { color: '#ffcc00', length: 8, width: 1.5 },
+  turret: { spriteKey: 'gun-07', width: 18, height: 46, pivotY: 0.8 },
+  weight: 8,
+  switchOutMs:    220,
+  switchInMs:     250,
+  switchPivotDeg: 18,
 };
 
 /** Gun_08 — Railgun. 180ms charge, pierces 2 enemies. */
@@ -344,7 +423,7 @@ export const GUN_08: WeaponDef = {
   fireRate: 0.5,
   projectileSpeed: 900,
   projectileLifetime: 1.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'plasma',
   shellWidth: 6,
   shellHeight: 24,
   muzzleFlash: { ...MUZZLE_FLASH_HEAVY, fps: 30 },
@@ -363,6 +442,11 @@ export const GUN_08: WeaponDef = {
   hitStaggerPx: 32,
   tracerStyle: { color: '#00e5ff', glowColor: '#00cfff', glowBlur: 14, length: 40, width: 2.5 },
   loadingRing: { radiusPx: 8, lineWidth: 2, color: '#00cfff', readyColor: '#ffffff' },
+  turret: { spriteKey: 'gun-08', width: 17, height: 38, pivotY: 0.8 },
+  weight: 16,
+  switchOutMs:    560,
+  switchInMs:     640,
+  switchPivotDeg: 35,
 };
 
 // ---------------------------------------------------------------------------
@@ -377,7 +461,7 @@ export const SNIPER_GUN: WeaponDef = {
   fireRate: 0.8,
   projectileSpeed: 600,
   projectileLifetime: 3,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'sniper-shell',
   shellWidth: 6,
   shellHeight: 20,
   muzzleFlash: { ...MUZZLE_FLASH_A, width: 36, height: 36 },
@@ -390,6 +474,11 @@ export const SNIPER_GUN: WeaponDef = {
   recoilSpring: 280,
   hitStaggerPx: 12,
   tracerStyle: { color: '#ffd040', length: 24, width: 1.5 },
+  turret: { spriteKey: 'gun-01', width: 20, height: 46, pivotY: 0.8 },
+  weight: 12,
+  switchOutMs:    350,
+  switchInMs:     400,
+  switchPivotDeg: 25,
 };
 
 /** Autocannon — medium ROF tank suppression (AI flanker/rusher). Not in player weapon list. */
@@ -400,7 +489,7 @@ export const AUTOCANNON: WeaponDef = {
   fireRate: 5,
   projectileSpeed: 380,
   projectileLifetime: 1.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'light-shell',
   shellWidth: 5,
   shellHeight: 13,
   muzzleFlash: { ...MUZZLE_FLASH_A, fps: 28, width: 26, height: 26 },
@@ -413,6 +502,11 @@ export const AUTOCANNON: WeaponDef = {
   recoilSpring: 380,
   hitStaggerPx: 5,
   tracerStyle: { color: '#ffaa44', length: 14, width: 1.5 },
+  turret: { spriteKey: 'gun-02', width: 18, height: 48, pivotY: 0.8 },
+  weight: 7,
+  switchOutMs:    200,
+  switchInMs:     220,
+  switchPivotDeg: 18,
 };
 
 /** Machine Gun — fast burst (AI flanker/rusher role). */
@@ -423,7 +517,7 @@ export const MACHINE_GUN: WeaponDef = {
   fireRate: 8,
   projectileSpeed: 350,
   projectileLifetime: 1.5,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'light-shell',
   shellWidth: 6,
   shellHeight: 12,
   muzzleFlash: { ...MUZZLE_FLASH_A, fps: 30, width: 24, height: 24 },
@@ -436,6 +530,11 @@ export const MACHINE_GUN: WeaponDef = {
   recoilSpring: 400,
   hitStaggerPx: 4,
   tracerStyle: { color: '#ff9900', length: 12, width: 1.5 },
+  turret: { spriteKey: 'gun-02', width: 18, height: 48, pivotY: 0.8 },
+  weight: 6,
+  switchOutMs:    200,
+  switchInMs:     220,
+  switchPivotDeg: 18,
 };
 
 // ---------------------------------------------------------------------------
@@ -450,7 +549,7 @@ export const INFANTRY_MG: WeaponDef = {
   fireRate: 7,
   projectileSpeed: 320,
   projectileLifetime: 1.2,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'light-shell',
   shellWidth: 4,
   shellHeight: 10,
   muzzleFlash: { ...MUZZLE_FLASH_A, fps: 30, width: 20, height: 20 },
@@ -463,6 +562,11 @@ export const INFANTRY_MG: WeaponDef = {
   recoilSpring: 0,
   hitStaggerPx: 3,
   tracerStyle: { color: '#ffaa00', length: 10, width: 1.5 },
+  turret: { spriteKey: 'gun-01', width: 0, height: 0, pivotY: 0 }, // infantry — no turret sprite
+  weight: 4,
+  switchOutMs:    160,
+  switchInMs:     180,
+  switchPivotDeg: 12,
 };
 
 /** Infantry Shotgun — Soldier_2 (flanker). 3-pellet burst, short range. */
@@ -473,7 +577,7 @@ export const INFANTRY_SHOTGUN: WeaponDef = {
   fireRate: 1.2,
   projectileSpeed: 420,
   projectileLifetime: 0.4,
-  shellSpriteKey: 'medium-shell',
+  shellSpriteKey: 'shotgun-shells',
   shellWidth: 4,
   shellHeight: 9,
   muzzleFlash: { ...MUZZLE_FLASH_A, width: 28, height: 28 },
@@ -492,6 +596,11 @@ export const INFANTRY_SHOTGUN: WeaponDef = {
   recoilSpring: 0,
   hitStaggerPx: 6,
   tracerStyle: { color: '#ffdd55', length: 7, width: 1.5 },
+  turret: { spriteKey: 'gun-01', width: 0, height: 0, pivotY: 0 }, // infantry — no turret sprite
+  weight: 5,
+  switchOutMs:    180,
+  switchInMs:     200,
+  switchPivotDeg: 14,
 };
 
 /** Infantry Rifled — Soldier_3 (sniper). Single bouncing shot, medium accuracy. */
@@ -515,6 +624,11 @@ export const INFANTRY_RIFLED: WeaponDef = {
   recoilSpring: 0,
   hitStaggerPx: 8,
   tracerStyle: { color: '#ccddff', glowColor: '#aaaaff', glowBlur: 4, length: 14, width: 2 },
+  turret: { spriteKey: 'gun-01', width: 0, height: 0, pivotY: 0 }, // infantry — no turret sprite
+  weight: 7,
+  switchOutMs:    200,
+  switchInMs:     220,
+  switchPivotDeg: 16,
 };
 
 // ---------------------------------------------------------------------------

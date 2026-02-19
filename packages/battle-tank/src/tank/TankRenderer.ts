@@ -31,10 +31,13 @@ export function drawTanks(
     }
 
     // --- Hull ---
-    const hullImg = assets.getImage(tank.hullKey) as CanvasImageSource | undefined;
+    const hullImg = assets.getImage(tank.hullKey) as HTMLImageElement | undefined;
+    const hullDisplayW = hullImg && hullImg.naturalHeight > 0
+      ? hullImg.naturalWidth / hullImg.naturalHeight * tank.hullHeight
+      : tank.hullHeight;
     if (hullImg) {
       drawPart(ctx, hullImg, pos.x, pos.y, tank.hullAngle,
-        0, 0, tank.hullWidth, tank.hullHeight);
+        0, 0, hullDisplayW, tank.hullHeight);
     }
 
     // --- Enemy tint overlay (per-role color) ---
@@ -46,18 +49,23 @@ export function drawTanks(
       ctx.translate(pos.x, pos.y);
       ctx.rotate(tank.hullAngle);
       ctx.fillStyle = tint;
-      ctx.fillRect(-tank.hullWidth / 2, -tank.hullHeight / 2,
-        tank.hullWidth, tank.hullHeight);
+      ctx.fillRect(-hullDisplayW / 2, -tank.hullHeight / 2,
+        hullDisplayW, tank.hullHeight);
       ctx.restore();
     }
 
     // --- Turret (drawn last, on top) ---
     const turretImg = assets.getImage(tank.turretKey) as CanvasImageSource | undefined;
     if (turretImg) {
-      // Pivot near turret base; recoilOffset shifts barrel backward along turret axis
-      const offsetY = tank.turretHeight * (0.5 - tank.turretPivotY) + tank.recoilOffset;
-      drawPart(ctx, turretImg, pos.x, pos.y, tank.turretAngle,
+      // Pivot near turret base; recoilOffset shifts barrel backward along turret axis.
+      // turretSwitchAngle adds deliberate angular offset during weapon switch (pivot sweep).
+      const offsetY    = tank.turretHeight * (0.5 - tank.turretPivotY) + tank.recoilOffset;
+      const drawAngle  = tank.turretAngle + (tank.turretSwitchAngle ?? 0);
+      const prevAlpha  = ctx.globalAlpha;
+      ctx.globalAlpha  = prevAlpha * (tank.turretAlpha ?? 1);
+      drawPart(ctx, turretImg, pos.x, pos.y, drawAngle,
         0, offsetY, tank.turretWidth, tank.turretHeight);
+      ctx.globalAlpha = prevAlpha;
     }
 
     // --- Shield overlay (cyan pulse while active) ---
@@ -71,8 +79,8 @@ export function drawTanks(
       ctx.translate(pos.x, pos.y);
       ctx.rotate(tank.hullAngle);
       ctx.fillStyle = '#44ccff';
-      ctx.fillRect(-tank.hullWidth / 2, -tank.hullHeight / 2,
-        tank.hullWidth, tank.hullHeight);
+      ctx.fillRect(-hullDisplayW / 2, -tank.hullHeight / 2,
+        hullDisplayW, tank.hullHeight);
       ctx.restore();
     }
 
@@ -85,8 +93,8 @@ export function drawTanks(
         ctx.translate(pos.x, pos.y);
         ctx.rotate(tank.hullAngle);
         ctx.fillStyle = tank.hitFlashColor;
-        ctx.fillRect(-tank.hullWidth / 2, -tank.hullHeight / 2,
-          tank.hullWidth, tank.hullHeight);
+        ctx.fillRect(-hullDisplayW / 2, -tank.hullHeight / 2,
+          hullDisplayW, tank.hullHeight);
         ctx.restore();
       }
     }

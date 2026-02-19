@@ -13,15 +13,15 @@ import { getTurretTip } from '../tank/TankUtils.js';
 import type { HitscanSystem } from './HitscanSystem.js';
 import type { BombSystem } from './BombSystem.js';
 import type { TileCell } from '../tilemap/types.js';
-import { PLAYER_WEAPONS } from '../config/WeaponConfig.js';
+import { PLAYER_WEAPONS, WEAPON_SWITCH_CONFIG } from '../config/WeaponConfig.js';
 import { COMBAT_CONFIG } from '../config/CombatConfig.js';
 import { BOMB_PLACE_KEY, BOMB_CYCLE_KEYS } from '../config/BombConfig.js';
 import type { BombType } from '../config/BombConfig.js';
 import type { BuffSystem } from '../systems/BuffSystem.js';
 
-/** Keys used to switch player weapons (Digit1–Digit5). */
+/** Keys used to switch player weapons (Digit1–Digit8). */
 const WEAPON_SWITCH_KEYS = [
-  'Digit1','Digit2','Digit3','Digit4','Digit5',
+  'Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8',
 ] as const;
 
 const BOMB_TYPES: BombType[] = ['proximity', 'timed', 'remote'];
@@ -29,6 +29,36 @@ const BOMB_TYPES: BombType[] = ['proximity', 'timed', 'remote'];
 function cycleBombType(current: BombType, dir: -1 | 1): BombType {
   const idx = BOMB_TYPES.indexOf(current);
   return BOMB_TYPES[(idx + dir + BOMB_TYPES.length) % BOMB_TYPES.length];
+}
+
+/**
+ * Begin the stow phase: clean up current weapon state, kick recoil, set pending target.
+ * Shared by initial switch requests and mid-draw redirects.
+ */
+function beginStow(
+  weapon: WeaponComponent,
+  tank: TankPartsComponent,
+  targetDef: import('../config/WeaponConfig.js').WeaponDef,
+  hitscanSys: HitscanSystem,
+): void {
+  // Clean up any active fire state
+  weapon.isCharging     = false;
+  weapon.chargeElapsed  = 0;
+  if (weapon.laserFiring) {
+    hitscanSys.stopContinuous();
+    weapon.laserFiring = false;
+  }
+  weapon.heatCurrent     = 0;
+  weapon.isOverheated    = false;
+  weapon.overheatElapsed = 0;
+
+  // Complementary snap kick (reduced) — primary animation is pivot sweep below
+  tank.recoilVelocity    = (weapon.def.recoilPx * WEAPON_SWITCH_CONFIG.stowRecoilMult) / 0.016;
+  tank.turretSwitchAngle = 0; // always restart sweep from on-aim
+
+  weapon.pendingDef      = targetDef;
+  weapon.switchPhase     = 'stowing';
+  weapon.switchElapsedMs = 0;
 }
 
 /**
@@ -75,25 +105,106 @@ export function updateWeapons(
     const cursorX = (pointer.x - cam.x) / cam.zoom;
     const cursorY = (pointer.y - cam.y) / cam.zoom;
 
-    // Weapon switch (1–8 keys) — edge detect
+    // Weapon switch (1–8 keys) — edge detect → mechanical stow/draw transition
     for (let i = 0; i < WEAPON_SWITCH_KEYS.length; i++) {
       const key = WEAPON_SWITCH_KEYS[i];
       const down = input.isPressed(key);
       if (down && !weaponKeyState.has(key) && i < PLAYER_WEAPONS.length) {
-        weapon.def = PLAYER_WEAPONS[i];
-        weapon.isCharging = false;
-        weapon.chargeElapsed = 0;
-        // Stop any active laser beam on weapon switch
-        if (weapon.laserFiring) {
-          hitscanSys.stopContinuous();
-          weapon.laserFiring = false;
+        const targetDef = PLAYER_WEAPONS[i];
+
+        if (weapon.switchPhase === 'none') {
+          if (targetDef.id !== weapon.def.id) {
+            // Begin stowing current weapon
+            beginStow(weapon, tank, targetDef, hitscanSys);
+          }
+          // same weapon key = no-op
+        } else if (weapon.switchPhase === 'stowing') {
+          if (targetDef.id === weapon.def.id) {
+            // Cancel switch — return to current weapon
+            weapon.pendingDef      = null;
+            weapon.switchPhase     = 'none';
+            weapon.switchElapsedMs = 0;
+            tank.turretSwitchAngle = 0;
+          } else if (targetDef.id !== weapon.pendingDef?.id) {
+            // Redirect to a different weapon — restart stow from aim position
+            weapon.pendingDef      = targetDef;
+            weapon.switchElapsedMs = 0;
+            tank.turretSwitchAngle = 0;
+          }
+        } else if (weapon.switchPhase === 'drawing') {
+          if (targetDef.id !== weapon.def.id) {
+            // New request while drawing — abort draw, stow the newly-drawn weapon
+            beginStow(weapon, tank, targetDef, hitscanSys);
+          }
         }
-        weapon.heatCurrent    = 0;
-        weapon.isOverheated   = false;
-        weapon.overheatElapsed = 0;
       }
       if (down) weaponKeyState.add(key); else weaponKeyState.delete(key);
     }
+
+    // Advance switch state machine
+    if (weapon.switchPhase !== 'none') {
+      weapon.switchElapsedMs += dt * 1000;
+
+      if (weapon.switchPhase === 'stowing' && weapon.switchElapsedMs >= weapon.def.switchOutMs) {
+        // Stow complete — swap def + turret visuals, kick barrel into drawing position
+        weapon.def        = weapon.pendingDef!;
+        weapon.pendingDef = null;
+        // Sync turret sprite/dimensions so TankRenderer shows the new gun
+        tank.turretKey    = weapon.def.turret.spriteKey;
+        tank.turretWidth  = weapon.def.turret.width;
+        tank.turretHeight = weapon.def.turret.height;
+        tank.turretPivotY = weapon.def.turret.pivotY;
+        weapon.switchPhase     = 'drawing';
+        weapon.switchElapsedMs = 0;
+        weapon.cooldownRemaining = 0;
+        // Barrel draw spring: starts retracted, eases forward
+        const drawOffset = Math.max(
+          WEAPON_SWITCH_CONFIG.drawMinOffsetPx,
+          weapon.def.recoilPx * WEAPON_SWITCH_CONFIG.drawOffsetMult,
+        );
+        tank.recoilOffset   = drawOffset;
+        tank.recoilVelocity = 0;
+        tank.turretAlpha    = 0;
+        // Draw starts from full pivot angle (new weapon's value)
+        tank.turretSwitchAngle =
+          weapon.def.switchPivotDeg * (Math.PI / 180) * WEAPON_SWITCH_CONFIG.pivotDir;
+      } else if (weapon.switchPhase === 'drawing' && weapon.switchElapsedMs >= weapon.def.switchInMs) {
+        weapon.switchPhase     = 'none';
+        weapon.switchElapsedMs = 0;
+        tank.turretAlpha       = 1;
+        tank.turretSwitchAngle = 0;
+      }
+
+      // Update turret alpha + pivot sweep angle for current phase
+      if (weapon.switchPhase === 'stowing') {
+        const ratio   = Math.min(weapon.switchElapsedMs / weapon.def.switchOutMs, 1);
+        // Smoothstep (ease-in-out): mechanical traversal — accelerates then decelerates
+        const t       = ratio * ratio * (3 - 2 * ratio);
+        const pivotRad = weapon.def.switchPivotDeg * (Math.PI / 180);
+        tank.turretSwitchAngle = t * pivotRad * WEAPON_SWITCH_CONFIG.pivotDir;
+
+        const fadeEnd = weapon.def.switchOutMs * WEAPON_SWITCH_CONFIG.turretFadeOutFraction;
+        tank.turretAlpha = fadeEnd > 0
+          ? Math.max(0, 1 - weapon.switchElapsedMs / fadeEnd)
+          : 0;
+      } else if (weapon.switchPhase === 'drawing') {
+        const ratio   = Math.min(weapon.switchElapsedMs / weapon.def.switchInMs, 1);
+        // Ease-out quadratic: barrel enters fast, settles into aim position
+        const t        = 1 - (1 - ratio) * (1 - ratio);
+        const pivotRad = weapon.def.switchPivotDeg * (Math.PI / 180);
+        tank.turretSwitchAngle = (1 - t) * pivotRad * WEAPON_SWITCH_CONFIG.pivotDir;
+
+        const fadeEnd = weapon.def.switchInMs * WEAPON_SWITCH_CONFIG.turretFadeInFraction;
+        tank.turretAlpha = fadeEnd > 0
+          ? Math.min(1, weapon.switchElapsedMs / fadeEnd)
+          : 1;
+      }
+
+      // Block all fire logic while switching
+      continue;
+    }
+
+    tank.turretAlpha = 1;
 
     // Bomb cycle ([ / ])
     const prevDown = input.isPressed(BOMB_CYCLE_KEYS.prev);

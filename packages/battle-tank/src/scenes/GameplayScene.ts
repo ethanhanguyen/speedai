@@ -38,7 +38,9 @@ import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
 import { SURVIVAL_01 } from '../maps/survival_01.js';
 import { MAP_CONFIG } from '../config/MapConfig.js';
-import { PLAYER_TANK } from '../config/TankConfig.js';
+import { assembleLoadout, getLoadoutTerrainCosts } from '../config/PartRegistry.js';
+import type { TerrainCosts } from '../config/PartRegistry.js';
+import { getActiveLoadout } from '../systems/LoadoutSystem.js';
 import { COMBAT_CONFIG } from '../config/CombatConfig.js';
 import { ITEM_EFFECTS, ITEM_POLARITY } from '../config/DropConfig.js';
 import type { DropItemType } from '../config/DropConfig.js';
@@ -95,6 +97,7 @@ export class GameplayScene extends Scene {
   private transitionTimer = 0;
   private transitionWon = false;
   private activeBombTypeRef: { value: BombType } = { value: 'proximity' };
+  private terrainCosts!: TerrainCosts;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -128,11 +131,16 @@ export class GameplayScene extends Scene {
     this.tileHP = new TileHPTracker();
     this.tileHP.init(this.tilemap);
 
+    // Assemble player tank from active loadout
+    const loadout = getActiveLoadout();
+    const playerDef = assembleLoadout(loadout);
+    this.terrainCosts = getLoadoutTerrainCosts(loadout);
+
     // Spawn player first so playerId is available for damage listeners
     const spawn  = meta.spawnPoints[0] ?? { r: 1, c: 1 };
     const spawnX = (spawn.c + 0.5) * MAP_CONFIG.tileSize;
     const spawnY = (spawn.r + 0.5) * MAP_CONFIG.tileSize;
-    this.playerId = createTank(this.entityManager, spawnX, spawnY, PLAYER_TANK, ['tank', 'player']);
+    this.playerId = createTank(this.entityManager, spawnX, spawnY, playerDef, ['tank', 'player']);
 
     this.buffSystem = new BuffSystem();
 
@@ -305,7 +313,7 @@ export class GameplayScene extends Scene {
       const tileR = Math.floor(playerPos.y / MAP_CONFIG.tileSize);
       const tileC = Math.floor(playerPos.x / MAP_CONFIG.tileSize);
       if (this.flowField.needsRecompute(tileR, tileC)) {
-        this.flowField.compute(this.tilemap, tileR, tileC);
+        this.flowField.compute(this.tilemap, tileR, tileC, this.terrainCosts);
       }
     }
 
@@ -313,7 +321,7 @@ export class GameplayScene extends Scene {
     updateAI(this.entityManager, this.flowField, this.playerId, this.pool, this.eventBus, gameDt);
 
     // 3. Player movement (with buff modifiers)
-    updateTankMovement(this.entityManager, this.input, this.camera, gameDt, this.buffSystem);
+    updateTankMovement(this.entityManager, this.input, this.camera, gameDt, this.buffSystem, this.tilemap, this.terrainCosts);
 
     // 4. All weapon fire modes + switching + bombs (with buff modifiers)
     updateWeapons(
@@ -386,7 +394,7 @@ export class GameplayScene extends Scene {
       if (auraPos) drawPlayerAura(ctx, auraPos.x, auraPos.y, auraEffects);
     }
     this.infantryRenderer.draw(ctx, this.entityManager, this.assets);
-    this.damageState.drawHullTint(ctx, this.entityManager);
+    this.damageState.drawHullTint(ctx, this.entityManager, this.assets);
     this.damageState.drawSmoke(ctx);
     this.vfx.drawWorld(ctx);
 
@@ -410,6 +418,18 @@ export class GameplayScene extends Scene {
       }
     }
 
+    let switchProgress: GameHUDState['switchProgress'];
+    if (weapon && weapon.switchPhase !== 'none') {
+      const phaseMs = weapon.switchPhase === 'stowing'
+        ? weapon.def.switchOutMs
+        : weapon.def.switchInMs;
+      switchProgress = {
+        ratio:       Math.min(weapon.switchElapsedMs / phaseMs, 1),
+        phase:       weapon.switchPhase,
+        pendingName: weapon.pendingDef?.name ?? weapon.def.name,
+      };
+    }
+
     const hudState: GameHUDState = {
       hp:              { current: health?.current ?? 0, max: health?.max ?? 1 },
       coins:           this.drops.coinsCollected,
@@ -421,6 +441,7 @@ export class GameplayScene extends Scene {
       weaponName:      weapon?.def.name,
       activeBombType:  this.activeBombTypeRef.value,
       activeEffects:   this.buffSystem.getActiveEffects(),
+      switchProgress,
     };
     this.hud.draw(ctx, this.canvas.width, this.canvas.height, hudState);
 

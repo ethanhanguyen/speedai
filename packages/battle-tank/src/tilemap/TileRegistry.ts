@@ -1,11 +1,5 @@
 import { TileId, ObjectId } from './types.js';
 
-export interface TileDef {
-  spriteKey: string;
-  /** rgba color used for gradient blending at tile-type boundaries. */
-  blendColor: string;
-}
-
 export interface ObjectDef {
   spriteKey: string;
   walkable: boolean;
@@ -14,11 +8,31 @@ export interface ObjectDef {
   blockProjectile: boolean;
 }
 
+/**
+ * Runtime tint overlay applied on top of the base sprite for synthetic terrains.
+ * `null` = no tint (sprite used as-is).
+ */
+export interface TileTint {
+  color: string;
+  alpha: number;
+}
+
+export interface TileDef {
+  spriteKey: string;
+  /** Optional runtime color overlay for terrains that share a base sprite. */
+  tint?: TileTint;
+}
+
 /** Ground tile visual definitions. Keyed by TileId. */
 export const TILE_DEFS: Record<TileId, TileDef> = {
-  [TileId.GRASS]: { spriteKey: 'ground-01a', blendColor: 'rgba(90,122,58,0.55)' },
-  [TileId.DIRT]:  { spriteKey: 'ground-02a', blendColor: 'rgba(138,106,58,0.55)' },
-  [TileId.STONE]: { spriteKey: 'ground-01b', blendColor: 'rgba(100,100,100,0.55)' },
+  [TileId.GRASS]:  { spriteKey: 'ground-01a' },
+  [TileId.DIRT]:   { spriteKey: 'ground-02a' },
+  [TileId.STONE]:  { spriteKey: 'ground-01b' },
+  [TileId.MUD]:    { spriteKey: 'ground-02a', tint: { color: '#3a2a10', alpha: 0.35 } },
+  [TileId.SAND]:   { spriteKey: 'ground-02a', tint: { color: '#c2b280', alpha: 0.3 } },
+  [TileId.ICE]:    { spriteKey: 'ground-snow' },
+  [TileId.WATER]:  { spriteKey: 'ground-water' },
+  [TileId.PUDDLE]: { spriteKey: 'ground-01a',  tint: { color: '#3a6090', alpha: 0.35 } },
 };
 
 /** Object definitions: visual + gameplay flags. Keyed by ObjectId. */
@@ -38,6 +52,11 @@ export const CHAR_MAP: Record<string, { ground: TileId; object: ObjectId }> = {
   '.': { ground: TileId.GRASS, object: ObjectId.NONE },
   'd': { ground: TileId.DIRT, object: ObjectId.NONE },
   's': { ground: TileId.STONE, object: ObjectId.NONE },
+  'm': { ground: TileId.MUD, object: ObjectId.NONE },
+  'a': { ground: TileId.SAND, object: ObjectId.NONE },
+  'i': { ground: TileId.ICE, object: ObjectId.NONE },
+  'w': { ground: TileId.WATER, object: ObjectId.NONE },
+  'p': { ground: TileId.PUDDLE, object: ObjectId.NONE },
   'B': { ground: TileId.GRASS, object: ObjectId.BLOCK },
   'H': { ground: TileId.GRASS, object: ObjectId.HEDGE },
   'C': { ground: TileId.GRASS, object: ObjectId.CONTAINER },
