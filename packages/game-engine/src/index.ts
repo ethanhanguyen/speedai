@@ -19,6 +19,7 @@ export type {
   VelocityComponent,
   SpriteComponent,
   PhysicsBodyComponent,
+  HealthComponent,
   IRenderer,
   IPhysicsEngine,
   ISoundManager,

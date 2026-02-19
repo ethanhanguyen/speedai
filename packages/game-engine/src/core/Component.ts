@@ -3,6 +3,7 @@ import type {
   VelocityComponent,
   SpriteComponent,
   PhysicsBodyComponent,
+  HealthComponent,
 } from './types.js';
 
 /** Component type name constants. */
@@ -58,6 +59,10 @@ export const ComponentFactory = {
       collisionGroup: 0,
       collisionMask: 0xFFFFFFFF,
     };
+  },
+
+  health(current: number, max?: number): HealthComponent {
+    return { current, max: max ?? current };
   },
 };
 

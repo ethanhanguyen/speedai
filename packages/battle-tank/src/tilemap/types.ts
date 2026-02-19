@@ -25,4 +25,5 @@ export interface MapData {
   rows: number;
   cols: number;
   spawnPoints: Array<{ r: number; c: number }>;
+  enemySpawns: Array<{ r: number; c: number }>;
 }

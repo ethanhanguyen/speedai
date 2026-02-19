@@ -46,6 +46,11 @@ export interface SpriteComponent {
   textureId: number;
 }
 
+export interface HealthComponent {
+  current: number;
+  max: number;
+}
+
 export interface PhysicsBodyComponent {
   bodyId: string;
   isStatic: boolean;

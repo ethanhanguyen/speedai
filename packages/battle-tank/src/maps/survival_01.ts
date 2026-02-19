@@ -4,11 +4,11 @@
  * Legend (see TileRegistry CHAR_MAP):
  *   .  grass        d  dirt          s  stone floor
  *   B  block        H  hedge         C  container
- *   W  wall         P  player spawn
+ *   W  wall         P  player spawn  S  enemy spawn
  */
 export const SURVIVAL_01 = [
   'WWWWWWWWWWWWWWWWWWWWWWWW',
-  'W....d.....ss.....d....W',
+  'WS...d.....ss.....d..S.W',
   'W..C...H.........H...C.W',
   'W......H..........H....W',
   'W.dd.......BB.......dd.W',
@@ -22,7 +22,7 @@ export const SURVIVAL_01 = [
   'W.dd.......BB.......dd.W',
   'W......H..........H....W',
   'W..C...H.........H...C.W',
-  'W....d.....ss.....d....W',
+  'WS...d.....ss.....d..S.W',
   'W......................W',
   'WWWWWWWWWWWWWWWWWWWWWWWW',
 ].join('\n');

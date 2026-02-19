@@ -5,9 +5,14 @@ import {
   AssetManager,
   SceneManager,
   CameraSystem,
+  ObjectPoolSystem,
+  EventBus,
 } from '@speedai/game-engine';
 import { ENGINE_CONFIG } from './config/EngineConfig.js';
+import { COMBAT_CONFIG } from './config/CombatConfig.js';
 import { GameplayScene } from './scenes/GameplayScene.js';
+import { MenuScene } from './scenes/MenuScene.js';
+import { GameOverScene } from './scenes/GameOverScene.js';
 
 async function main() {
   const canvas = document.querySelector('#game') as HTMLCanvasElement;
@@ -27,7 +32,7 @@ async function main() {
     autoResize: true,
   });
 
-  // --- Assets (individual PNGs, atlas deferred to Phase 2) ---
+  // --- Assets ---
   const assets = new AssetManager();
   await Promise.all([
     // Tank
@@ -35,14 +40,92 @@ async function main() {
     assets.loadImage('track-1a', '/sprites/tracks/Track_1_A.png'),
     assets.loadImage('gun-01', '/sprites/weapons/Gun_01.png'),
     // Ground tiles
-    assets.loadImage('ground-01a', '/sprites/tiles/Ground_Tile_01_A.png'),
-    assets.loadImage('ground-01b', '/sprites/tiles/Ground_Tile_01_B.png'),
-    assets.loadImage('ground-02a', '/sprites/tiles/Ground_Tile_02_A.png'),
+    assets.loadImage('ground-01a', '/sprites/tiles/Ground_Tile_Dirty_Road_1.png'),
+    assets.loadImage('ground-01b', '/sprites/tiles/Ground_Tile_Grass_1.png'),
+    assets.loadImage('ground-02a', '/sprites/tiles/Ground_Tile_Dirty_Road_2.png'),
     // Objects
     assets.loadImage('block-a01', '/sprites/tiles/Block_A_01.png'),
     assets.loadImage('block-b01', '/sprites/tiles/Block_B_01.png'),
     assets.loadImage('hedge-a01', '/sprites/tiles/Hedge_A_01.png'),
     assets.loadImage('container-a', '/sprites/tiles/Container_A.png'),
+    // Projectile
+    assets.loadImage('medium-shell', '/sprites/effects/Medium_Shell.png'),
+    // Muzzle flash (4 frames)
+    assets.loadImage('muzzle-flash-0', '/sprites/effects/Sprite_Fire_Shots_Shot_A_000.png'),
+    assets.loadImage('muzzle-flash-1', '/sprites/effects/Sprite_Fire_Shots_Shot_A_001.png'),
+    assets.loadImage('muzzle-flash-2', '/sprites/effects/Sprite_Fire_Shots_Shot_A_002.png'),
+    assets.loadImage('muzzle-flash-3', '/sprites/effects/Sprite_Fire_Shots_Shot_A_003.png'),
+    // Impact (4 frames)
+    assets.loadImage('impact-0', '/sprites/effects/Sprite_Fire_Shots_Impact_A_000.png'),
+    assets.loadImage('impact-1', '/sprites/effects/Sprite_Fire_Shots_Impact_A_001.png'),
+    assets.loadImage('impact-2', '/sprites/effects/Sprite_Fire_Shots_Impact_A_002.png'),
+    assets.loadImage('impact-3', '/sprites/effects/Sprite_Fire_Shots_Impact_A_003.png'),
+    // Explosion (9 frames)
+    assets.loadImage('explosion-0', '/sprites/effects/Sprite_Effects_Explosion_000.png'),
+    assets.loadImage('explosion-1', '/sprites/effects/Sprite_Effects_Explosion_001.png'),
+    assets.loadImage('explosion-2', '/sprites/effects/Sprite_Effects_Explosion_002.png'),
+    assets.loadImage('explosion-3', '/sprites/effects/Sprite_Effects_Explosion_003.png'),
+    assets.loadImage('explosion-4', '/sprites/effects/Sprite_Effects_Explosion_004.png'),
+    assets.loadImage('explosion-5', '/sprites/effects/Sprite_Effects_Explosion_005.png'),
+    assets.loadImage('explosion-6', '/sprites/effects/Sprite_Effects_Explosion_006.png'),
+    assets.loadImage('explosion-7', '/sprites/effects/Sprite_Effects_Explosion_007.png'),
+    assets.loadImage('explosion-8', '/sprites/effects/Sprite_Effects_Explosion_008.png'),
+    // Coin animation (8 frames)
+    assets.loadImage('coin-0', '/sprites/coins/Gold_1.png'),
+    assets.loadImage('coin-1', '/sprites/coins/Gold_2.png'),
+    assets.loadImage('coin-2', '/sprites/coins/Gold_3.png'),
+    assets.loadImage('coin-3', '/sprites/coins/Gold_4.png'),
+    assets.loadImage('coin-4', '/sprites/coins/Gold_5.png'),
+    assets.loadImage('coin-5', '/sprites/coins/Gold_6.png'),
+    assets.loadImage('coin-6', '/sprites/coins/Gold_7.png'),
+    assets.loadImage('coin-7', '/sprites/coins/Gold_8.png'),
+    // Infantry sprite sheets — Pack 5 (Soldier_1=MG, Soldier_2=Shotgun, Soldier_3=Rifled)
+    assets.loadImage('infantry-s1-idle',   '/sprites/infantry/Soldier_1/Idle.png'),
+    assets.loadImage('infantry-s1-walk',   '/sprites/infantry/Soldier_1/Walk.png'),
+    assets.loadImage('infantry-s1-run',    '/sprites/infantry/Soldier_1/Run.png'),
+    assets.loadImage('infantry-s1-shot',   '/sprites/infantry/Soldier_1/Shot_1.png'),
+    assets.loadImage('infantry-s1-reload', '/sprites/infantry/Soldier_1/Recharge.png'),
+    assets.loadImage('infantry-s1-hurt',   '/sprites/infantry/Soldier_1/Hurt.png'),
+    assets.loadImage('infantry-s1-dead',   '/sprites/infantry/Soldier_1/Dead.png'),
+    assets.loadImage('infantry-s2-idle',   '/sprites/infantry/Soldier_2/Idle.png'),
+    assets.loadImage('infantry-s2-walk',   '/sprites/infantry/Soldier_2/Walk.png'),
+    assets.loadImage('infantry-s2-run',    '/sprites/infantry/Soldier_2/Run.png'),
+    assets.loadImage('infantry-s2-shot',   '/sprites/infantry/Soldier_2/Shot_1.png'),
+    assets.loadImage('infantry-s2-reload', '/sprites/infantry/Soldier_2/Recharge.png'),
+    assets.loadImage('infantry-s2-hurt',   '/sprites/infantry/Soldier_2/Hurt.png'),
+    assets.loadImage('infantry-s2-dead',   '/sprites/infantry/Soldier_2/Dead.png'),
+    assets.loadImage('infantry-s3-idle',   '/sprites/infantry/Soldier_3/Idle.png'),
+    assets.loadImage('infantry-s3-walk',   '/sprites/infantry/Soldier_3/Walk.png'),
+    assets.loadImage('infantry-s3-run',    '/sprites/infantry/Soldier_3/Run.png'),
+    assets.loadImage('infantry-s3-shot',   '/sprites/infantry/Soldier_3/Shot_1.png'),
+    assets.loadImage('infantry-s3-reload', '/sprites/infantry/Soldier_3/Recharge.png'),
+    assets.loadImage('infantry-s3-hurt',   '/sprites/infantry/Soldier_3/Hurt.png'),
+    assets.loadImage('infantry-s3-dead',   '/sprites/infantry/Soldier_3/Dead.png'),
+
+    // Drop world sprites (*_Bonus.png / *_Debuff.png)
+    assets.loadImage('drop-hp',              '/sprites/icons/HP_Bonus.png'),
+    assets.loadImage('drop-ammo',            '/sprites/icons/Ammunition_Bonus.png'),
+    assets.loadImage('drop-nuke',            '/sprites/icons/Nuke_Bonus.png'),
+    assets.loadImage('drop-shield',          '/sprites/icons/Shield_Bonus.png'),
+    assets.loadImage('drop-attack',          '/sprites/icons/Attack_Bonus.png'),
+    assets.loadImage('drop-speed',           '/sprites/icons/Speed_Bonus.png'),
+    assets.loadImage('drop-magnet',          '/sprites/icons/Magnet_Bonus.png'),
+    assets.loadImage('drop-armor',           '/sprites/icons/Armor_Bonus.png'),
+    assets.loadImage('drop-hp-debuff',       '/sprites/icons/HP_Debuff.png'),
+    assets.loadImage('drop-speed-debuff',    '/sprites/icons/Speed_Debuff.png'),
+    assets.loadImage('drop-armor-debuff',    '/sprites/icons/Armor_Debuff.png'),
+    assets.loadImage('drop-ammo-debuff',     '/sprites/icons/Ammunition_Debuff.png'),
+    assets.loadImage('drop-mobility-debuff', '/sprites/icons/Mobility_Debuff.png'),
+    // HUD buff/debuff icons (*_Icon.png)
+    assets.loadImage('icon-hp',       '/sprites/icons/HP_Icon.png'),
+    assets.loadImage('icon-ammo',     '/sprites/icons/Ammunition_Icon.png'),
+    assets.loadImage('icon-nuke',     '/sprites/icons/Nuke_Icon.png'),
+    assets.loadImage('icon-shield',   '/sprites/icons/Shield_Icon.png'),
+    assets.loadImage('icon-attack',   '/sprites/icons/Attack_Icon.png'),
+    assets.loadImage('icon-speed',    '/sprites/icons/Speed_Icon.png'),
+    assets.loadImage('icon-magnet',   '/sprites/icons/Magnet_Icon.png'),
+    assets.loadImage('icon-armor',    '/sprites/icons/Armor_Icon.png'),
+    assets.loadImage('icon-mobility', '/sprites/icons/Mobility_Icon.png'),
   ]);
 
   // --- Camera ---
@@ -52,12 +135,30 @@ async function main() {
   });
   engine.addSystem(camera);
 
+  // --- Object Pool (projectiles) ---
+  const pool = new ObjectPoolSystem();
+  engine.addSystem(pool);
+  pool.registerPool({
+    name: 'projectile',
+    maxSize: COMBAT_CONFIG.projectilePoolSize,
+    components: [],
+  });
+
+  // --- Event Bus ---
+  const eventBus = new EventBus();
+
   // --- Scenes ---
   const input = engine.input as UnifiedInput;
   const sceneManager = new SceneManager(engine.entities);
-  const gameplay = new GameplayScene(canvas, assets, camera, input);
+
+  const menu = new MenuScene(canvas, input, sceneManager);
+  const gameplay = new GameplayScene(canvas, assets, camera, input, pool, eventBus, sceneManager);
+  const gameOver = new GameOverScene(canvas, input, sceneManager);
+
+  sceneManager.register(menu);
   sceneManager.register(gameplay);
-  sceneManager.switchTo('Gameplay');
+  sceneManager.register(gameOver);
+  sceneManager.switchTo('Menu');
 
   // --- Game loop ---
   engine.start();

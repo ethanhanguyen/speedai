@@ -4,6 +4,7 @@ import { CHAR_MAP } from './TileRegistry.js';
 import { TileId, ObjectId } from './types.js';
 
 const SPAWN_CHAR = 'P';
+const ENEMY_SPAWN_CHAR = 'S';
 const DEFAULT_CELL: TileCell = { ground: TileId.GRASS, object: ObjectId.NONE };
 
 /**
@@ -20,6 +21,7 @@ export function parseTilemap(ascii: string, tileSize: number): { grid: GridModel
 
   const grid = new GridModel<TileCell>(rows, cols, tileSize, 0);
   const spawnPoints: Array<{ r: number; c: number }> = [];
+  const enemySpawns: Array<{ r: number; c: number }> = [];
 
   for (let r = 0; r < rows; r++) {
     const line = lines[r];
@@ -28,6 +30,8 @@ export function parseTilemap(ascii: string, tileSize: number): { grid: GridModel
 
       if (ch === SPAWN_CHAR) {
         spawnPoints.push({ r, c });
+      } else if (ch === ENEMY_SPAWN_CHAR) {
+        enemySpawns.push({ r, c });
       }
 
       const def = CHAR_MAP[ch];
@@ -37,6 +41,6 @@ export function parseTilemap(ascii: string, tileSize: number): { grid: GridModel
 
   return {
     grid,
-    meta: { rows, cols, spawnPoints },
+    meta: { rows, cols, spawnPoints, enemySpawns },
   };
 }

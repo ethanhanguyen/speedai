@@ -22,6 +22,7 @@ export interface TankPartsComponent {
   hullAngle: number;      // radians, 0 = up (north), positive = clockwise
   turretAngle: number;    // radians, same convention
   speed: number;          // current scalar speed (px/s), positive = forward
+  trackOffset: number;    // accumulated scroll offset (px), wraps at trackHeight
 
   // Movement params (copied from TankDef at creation, read-only by convention)
   maxForwardSpeed: number;
@@ -29,7 +30,21 @@ export interface TankPartsComponent {
   acceleration: number;
   deceleration: number;
   turnRate: number;
+  turretTurnRate: number;   // rad/s — max turret rotation speed
 
   // Collision
   collisionRadius: number;
+
+  // Recoil — spring-damper barrel kick on fire
+  recoilOffset: number;    // current offset in px along barrel axis (0 = rest)
+  recoilVelocity: number;  // px/s (positive = recoiling away from muzzle)
+
+  // Hit flash — brief color overlay when taking damage
+  hitFlashElapsed: number;  // seconds since last hit (resets on each hit)
+  hitFlashDuration: number; // total duration of the flash (from CombatConfig.hitFlash)
+  hitFlashColor: string;    // rgba color string; '' = no flash active
+
+  // Shield — temporary damage reduction from 'shield' item pickup
+  shieldElapsed: number;   // seconds since shield was activated (0 = inactive)
+  shieldDuration: number;  // total shield duration in seconds (0 = inactive)
 }
