@@ -5,6 +5,7 @@ import { OBJECT_DEFS } from '../tilemap/TileRegistry.js';
 import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
 import { MAP_CONFIG } from '../config/MapConfig.js';
+import { resolveAnchor } from '../tilemap/MultiTileUtils.js';
 
 /**
  * Separate-axis tile collision resolution.
@@ -66,8 +67,14 @@ function isAreaWalkable(
       const cell = tilemap.get(r, c);
       // Out of bounds = not walkable
       if (!cell) return false;
-      if (cell.object !== ObjectId.NONE) {
-        const def = OBJECT_DEFS[cell.object];
+
+      // Resolve actual object (follow multi-tile anchor if present)
+      const anchor = resolveAnchor(r, c, tilemap);
+      const anchorCell = tilemap.get(anchor.r, anchor.c);
+      const objectId = anchorCell?.object ?? ObjectId.NONE;
+
+      if (objectId !== ObjectId.NONE) {
+        const def = OBJECT_DEFS[objectId];
         if (!def.walkable) return false;
       }
     }

@@ -1,34 +1,44 @@
 /**
- * Arena Map 01 — 24x18 grid. Generated with ARENA_GEN_CONFIG (seed 7), then hand-tuned.
+ * Arena Map 01 — "Desert Compound" — 24x18 grid.
+ *
+ * Multi-tile objects:
+ *   B = 2x2 block (anchor top-left)
+ *   C = 1x2 container (anchor top, vertical)
+ *   + = continuation cell
+ *
+ * Battlefield layout:
+ *   - Desert combat zone (sand/stone dominant)
+ *   - Concrete roads (ice = slippery paths)
+ *   - Central control point (player spawn on dirt crossroads)
+ *   - Symmetrical compound layout
+ *   - Container storage along walls
+ *   - Block defensive positions at key corners
+ *   - Sand open areas = long-range engagement zones
+ *   - Stone hardcover near center
  *
  * Terrain chars (see TileRegistry CHAR_MAP):
  *   .  grass   d  dirt    s  stone   m  mud    a  sand
  *   i  ice     w  water   p  puddle
- *   B  block   C  container   W  wall
+ *   B+ block (2x2)   C+ container (1x2)   W wall   H hedgehog
  *   P  player spawn   S  enemy spawn
- *
- * To regenerate from scratch:
- *   import { generateMap } from './MapGenerator.js';
- *   import { ARENA_GEN_CONFIG } from '../config/MapGenDefaults.js';
- *   console.log(generateMap(ARENA_GEN_CONFIG, 7));
  */
 export const ARENA_01 = [
   'WWWWWWWWWWWWWWWWWWWWWWWW',
-  'WS.s.s.B..aa..B.s.s..SW',
-  'W.......B....B.........W',
-  'W.s..B......B...B..s...W',
-  'W....C..ii.....ii..C...W',
-  'W.s........ss.........sW',
-  'W...B..C...ss...C..B...W',
-  'W.a....B...dd...B....a.W',
-  'W.......C..P...C.......W',
-  'W.a....B...dd...B....a.W',
-  'W...B..C...ss...C..B...W',
-  'W.s........ss.........sW',
-  'W....C..ii.....ii..C...W',
-  'W.s..B......B...B..s...W',
-  'W.......B....B.........W',
-  'WS.s.s.B..aa..B.s.s..SW',
+  'WSC.aa.B+.ii.B+.aa.C.SW',
+  'W.+.aa.++.ii.++.aa.+...W',
+  'W.sss.....dd.....sss...W',
+  'Wa.C.B+.dddddd.B+.C.a..W',
+  'Wa.+.++.d.ss.d.++.+...aW',
+  'W.......d.ss.d.........W',
+  'W.B+i...ddssdd...iB+...W',
+  'W.++iC....P....C.i++...W',
+  'W...i+...dsssd...+i....W',
+  'W.......d.ss.d.........W',
+  'Wa.C.B+.d.ss.d.B+.C...aW',
+  'Wa.+.++.dddddd.++.+.a..W',
+  'W.sss.....dd.....sss...W',
+  'W.C.aa.B+.ii.B+.aa.C...W',
+  'WS+.aa.++.ii.++.aa.+.SW',
   'W......................W',
   'WWWWWWWWWWWWWWWWWWWWWWWW',
 ].join('\n');

@@ -6,7 +6,7 @@ export interface MapEntry {
   label: string;
   description: string;
   ascii: string;
-  /** Seed used for deterministic decor + hedgehog scatter passes. */
+  /** Seed used for deterministic pipe scatter pass. */
   decorSeed: number;
 }
 

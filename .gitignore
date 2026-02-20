@@ -6,3 +6,5 @@ dist/
 
 GAME_SPEC_*
 *plan*.md
+tmp/
+output_*.png

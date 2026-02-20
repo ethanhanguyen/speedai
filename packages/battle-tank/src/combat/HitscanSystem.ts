@@ -98,14 +98,16 @@ export class HitscanSystem {
 
       if (!cell) { endX = cx; endY = cy; break; }
 
-      if (cell.object !== ObjectId.NONE && OBJECT_DEFS[cell.object].blockProjectile) {
+      const objectId = resolveObjectId(tilemap, cell);
+      if (objectId !== ObjectId.NONE && OBJECT_DEFS[objectId].blockProjectile) {
         endX = cx; endY = cy;
+        const { r: anchorR, c: anchorC } = resolveAnchorCoords(tilemap, cell, row, col);
         eventBus.fire('projectile:hit', {
           projectileId: -1,
           x: cx, y: cy,
-          tileRow: row, tileCol: col,
+          tileRow: anchorR, tileCol: anchorC,
           damage: weaponDef.damage,
-          isDestructible: OBJECT_DEFS[cell.object].destructible,
+          isDestructible: OBJECT_DEFS[objectId].destructible,
           weaponDef,
         });
         break;
@@ -190,9 +192,11 @@ export class HitscanSystem {
 
       if (!cell) { endX = cx; endY = cy; break; }
 
-      if (cell.object !== ObjectId.NONE && OBJECT_DEFS[cell.object].blockProjectile) {
+      const objectId = resolveObjectId(tilemap, cell);
+      if (objectId !== ObjectId.NONE && OBJECT_DEFS[objectId].blockProjectile) {
         endX = cx; endY = cy;
-        newTileHit = { tileRow: row, tileCol: col, x: cx, y: cy, isDestructible: OBJECT_DEFS[cell.object].destructible };
+        const { r: anchorR, c: anchorC } = resolveAnchorCoords(tilemap, cell, row, col);
+        newTileHit = { tileRow: anchorR, tileCol: anchorC, x: cx, y: cy, isDestructible: OBJECT_DEFS[objectId].destructible };
         break;
       }
 
@@ -376,4 +380,30 @@ export class HitscanSystem {
       }
     }
   }
+}
+
+/**
+ * Resolve the actual ObjectId for a cell, following multi-tile anchor if present.
+ */
+function resolveObjectId(tilemap: GridModel<TileCell>, cell: TileCell): ObjectId {
+  if (cell.multiTileAnchor) {
+    const anchor = tilemap.get(cell.multiTileAnchor.r, cell.multiTileAnchor.c);
+    return anchor?.object ?? ObjectId.NONE;
+  }
+  return cell.object;
+}
+
+/**
+ * Resolve anchor coordinates for a cell (for multi-tile objects).
+ */
+function resolveAnchorCoords(
+  tilemap: GridModel<TileCell>,
+  cell: TileCell,
+  r: number,
+  c: number,
+): { r: number; c: number } {
+  if (cell.multiTileAnchor) {
+    return cell.multiTileAnchor;
+  }
+  return { r, c };
 }

@@ -151,3 +151,5 @@ export { WeightedPicker } from './utils/WeightedPicker.js';
 export { ObjectiveTracker } from './utils/ObjectiveTracker.js';
 export type { ObjectiveDef, ObjectiveState } from './utils/ObjectiveTracker.js';
 export { FrameAnimator } from './utils/FrameAnimator.js';
+export { bakeLayer, drawLayerSlice } from './utils/LayerCache.js';
+export type { LayerCache, LayerCacheConfig } from './utils/LayerCache.js';

@@ -133,13 +133,15 @@ export const TRACK_REGISTRY: Readonly<Record<string, TrackDef>> = {
     id: 'track-1', name: 'Narrow Steel',
     spriteKey: 'track-1a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.7, weight: 6,
-    terrainCosts: { ...BASE_TERRAIN, [TileId.STONE]: 1.1, [TileId.MUD]: 0.5 },
+    // +10% on stone road, −30% in mud (spec: 5.8)
+    terrainCosts: { ...BASE_TERRAIN, [TileId.STONE]: 1.1, [TileId.MUD]: 0.7 },
   },
   'track-2': {
     id: 'track-2', name: 'Wide Rubber',
     spriteKey: 'track-2a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.85, weight: 8,
-    terrainCosts: { ...BASE_TERRAIN, [TileId.MUD]: 0.9, [TileId.SAND]: 0.9, [TileId.WATER]: 0.55 },
+    // 1.0 on mud = ignores mud penalty (spec: 5.8); minor sand penalty; reduced water
+    terrainCosts: { ...BASE_TERRAIN, [TileId.MUD]: 1.0, [TileId.SAND]: 0.9, [TileId.WATER]: 0.55 },
   },
   'track-3': {
     id: 'track-3', name: 'Spiked Treads',

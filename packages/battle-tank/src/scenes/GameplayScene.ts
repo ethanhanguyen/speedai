@@ -5,7 +5,7 @@ import type {
 } from '@speedai/game-engine';
 import type { TileCell, MapData } from '../tilemap/types.js';
 import { parseTilemap } from '../tilemap/TilemapLoader.js';
-import { drawTilemap } from '../tilemap/TilemapRenderer.js';
+import { drawGroundLayer, drawObjectLayer, bakeTilemapGroundLayer } from '../tilemap/TilemapRenderer.js';
 import { createTank } from '../tank/TankAssembler.js';
 import { drawTanks } from '../tank/TankRenderer.js';
 import { InfantryRenderer } from '../tank/InfantryRenderer.js';
@@ -102,6 +102,7 @@ export class GameplayScene extends Scene {
   private activeBombTypeRef: { value: BombType } = { value: 'proximity' };
   private terrainCosts!: TerrainCosts;
   private miniMap!: MiniMapRenderer;
+  private groundCache: import('@speedai/game-engine').LayerCache | undefined;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -128,6 +129,7 @@ export class GameplayScene extends Scene {
     applyDecorPasses(grid, meta, DECOR_SCATTER_CONFIG, selectedMap.decorSeed);
     this.tilemap = grid;
     this.mapMeta = meta;
+    this.groundCache = bakeTilemapGroundLayer(grid, this.assets);
     this.miniMap = new MiniMapRenderer();
     this.miniMap.init(grid, meta.cols, meta.rows);
 
@@ -384,11 +386,23 @@ export class GameplayScene extends Scene {
     const ctx = this.canvas.getContext('2d')!;
     const cam = this.camera.getTransform();
 
+    // Draw static ground layer in screen space (before camera transform)
+    if (this.groundCache) {
+      drawGroundLayer(ctx, this.tilemap, this.camera, this.assets, this.groundCache);
+    }
+
+    // Apply camera transform for world-space rendering
     ctx.save();
     ctx.translate(Math.round(cam.x), Math.round(cam.y));
     ctx.scale(cam.zoom, cam.zoom);
 
-    drawTilemap(ctx, this.tilemap, this.camera, this.assets);
+    // Fallback: draw ground layer in world space if cache not ready
+    if (!this.groundCache) {
+      drawGroundLayer(ctx, this.tilemap, this.camera, this.assets);
+    }
+
+    // Draw dynamic object layer and entities in world space
+    drawObjectLayer(ctx, this.tilemap, this.camera, this.assets);
     this.drops.draw(ctx);
     this.projRenderer.draw(
       ctx, this.entityManager, this.assets,

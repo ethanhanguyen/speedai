@@ -68,7 +68,7 @@ async function main() {
     assets.loadImage('ground-01a', '/sprites/tiles/Ground_Tile_Dirty_Road_1.png'),
     assets.loadImage('ground-01b', '/sprites/tiles/Ground_Tile_Grass_1.png'),
     assets.loadImage('ground-02a', '/sprites/tiles/Ground_Tile_Dirty_Road_2.png'),
-    assets.loadImage('ground-snow',  '/sprites/tiles/Ground_Tile_Snow_1.png'),
+    assets.loadImage('ground-winter', '/sprites/tiles/Ground_Tile_Dirty_Road_Winter_1.png'),
     assets.loadImage('ground-water', '/sprites/tiles/Ground_Tile_Water_1.png'),
     // Objects
     assets.loadImage('block-a01', '/sprites/tiles/Block_A_01.png'),
@@ -77,18 +77,20 @@ async function main() {
     assets.loadImage('container-b', '/sprites/tiles/Container_B.png'),
     assets.loadImage('container-c', '/sprites/tiles/Container_C.png'),
     assets.loadImage('container-d', '/sprites/tiles/Container_D.png'),
-    assets.loadImage('hedgehog-a', '/sprites/tiles/Czech_Hdgehog_A.png'),
-    assets.loadImage('hedgehog-b', '/sprites/tiles/Czech_Hdgehog_B.png'),
-    // Decor sprites
+    assets.loadImage('hedgehog-a',  '/sprites/tiles/Czech_Hdgehog_A.png'),
+    assets.loadImage('hedgehog-b',  '/sprites/tiles/Czech_Hdgehog_B.png'),
+    // Decor sprites — blast trails
     assets.loadImage('decor-blast-1', '/sprites/decor/Blast_Trail_01.png'),
     assets.loadImage('decor-blast-2', '/sprites/decor/Blast_Trail_02.png'),
     assets.loadImage('decor-blast-3', '/sprites/decor/Blast_Trail_03.png'),
     assets.loadImage('decor-blast-4', '/sprites/decor/Blast_Trail_04.png'),
     assets.loadImage('decor-blast-5', '/sprites/decor/Blast_Trail_05.png'),
     assets.loadImage('decor-blast-6', '/sprites/decor/Blast_Trail_06.png'),
+    // Decor sprites — borders
     assets.loadImage('decor-border-a', '/sprites/decor/Border_A.png'),
     assets.loadImage('decor-border-b', '/sprites/decor/Border_B.png'),
     assets.loadImage('decor-border-c', '/sprites/decor/Border_C.png'),
+    // Decor sprites — puddles
     assets.loadImage('decor-puddle-1', '/sprites/decor/Puddle_01.png'),
     assets.loadImage('decor-puddle-2', '/sprites/decor/Puddle_02.png'),
     assets.loadImage('decor-puddle-3', '/sprites/decor/Puddle_03.png'),

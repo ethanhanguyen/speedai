@@ -12,19 +12,21 @@ import { INFANTRY_PARTS } from '../components/InfantryParts.js';
 const MM = MAP_CONFIG.MINI_MAP;
 
 export class MiniMapRenderer {
-  private mapCanvas: OffscreenCanvas | null = null;
+  private mapCanvas: HTMLCanvasElement | null = null;
   private mapCols = 0;
   private mapRows = 0;
 
   /**
    * Call once after parseTilemap. Pre-renders the static map layer to an
-   * OffscreenCanvas (1px per tile cell); blitted + scaled each frame.
+   * offscreen canvas (1px per tile cell); blitted + scaled each frame.
    */
   init(grid: GridModel<TileCell>, cols: number, rows: number): void {
     this.mapCols = cols;
     this.mapRows = rows;
 
-    const oc = new OffscreenCanvas(cols, rows);
+    const oc = document.createElement('canvas');
+    oc.width = cols;
+    oc.height = rows;
     const octx = oc.getContext('2d')!;
 
     for (let r = 0; r < rows; r++) {

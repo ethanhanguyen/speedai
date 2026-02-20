@@ -73,11 +73,14 @@ export function updateProjectiles(
       continue;
     }
 
-    // Tile collision
-    if (cell.object !== ObjectId.NONE) {
-      const def = OBJECT_DEFS[cell.object];
+    // Tile collision (resolve multi-tile anchor if needed)
+    const objectId = resolveObjectId(tilemap, cell);
+    if (objectId !== ObjectId.NONE) {
+      const def = OBJECT_DEFS[objectId];
       if (def.blockProjectile) {
-        handleTileHit(em, pool, tilemap, eventBus, id, pos, vel, proj, row, col, def.destructible);
+        // For multi-tile objects, use anchor coords for damage tracking
+        const { r: anchorR, c: anchorC } = resolveAnchorCoords(tilemap, cell, row, col);
+        handleTileHit(em, pool, tilemap, eventBus, id, pos, vel, proj, anchorR, anchorC, def.destructible);
       }
     }
   }
@@ -144,6 +147,32 @@ function handleTileHit(
     weaponDef: proj.weaponDef,
   });
   releaseProjectile(em, pool, id);
+}
+
+/**
+ * Resolve the actual ObjectId for a cell, following multi-tile anchor if present.
+ */
+function resolveObjectId(tilemap: GridModel<TileCell>, cell: TileCell): ObjectId {
+  if (cell.multiTileAnchor) {
+    const anchor = tilemap.get(cell.multiTileAnchor.r, cell.multiTileAnchor.c);
+    return anchor?.object ?? ObjectId.NONE;
+  }
+  return cell.object;
+}
+
+/**
+ * Resolve anchor coordinates for a cell (for multi-tile objects).
+ */
+function resolveAnchorCoords(
+  tilemap: GridModel<TileCell>,
+  cell: TileCell,
+  r: number,
+  c: number,
+): { r: number; c: number } {
+  if (cell.multiTileAnchor) {
+    return cell.multiTileAnchor;
+  }
+  return { r, c };
 }
 
 /** Determine which axis the projectile hit by checking neighbors. */

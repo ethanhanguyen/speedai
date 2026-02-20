@@ -6,7 +6,7 @@ import { COMBAT_CONFIG } from '../config/CombatConfig.js';
 import type { BuffSystem } from './BuffSystem.js';
 import type { TileCell } from '../tilemap/types.js';
 import type { TerrainCosts } from '../config/PartRegistry.js';
-import { MAP_CONFIG } from '../config/MapConfig.js';
+import { getTerrainSpeedMod } from './TerrainCostSystem.js';
 
 /** Damping ratio for recoil spring: critical damping = 1.0, overdamped > 1. */
 const RECOIL_DAMPING = 1.4;
@@ -65,13 +65,9 @@ export function updateTankMovement(
     const buffSpeedMod = buffSystem ? buffSystem.getModifier('speed') : 1;
 
     // Terrain speed multiplier from tile under tank center
-    let terrainMod = 1;
-    if (tilemap && terrainCosts) {
-      const tr = Math.floor(pos.y / MAP_CONFIG.tileSize);
-      const tc = Math.floor(pos.x / MAP_CONFIG.tileSize);
-      const cell = tilemap.get(tr, tc);
-      if (cell) terrainMod = terrainCosts[cell.ground] ?? 1;
-    }
+    const terrainMod = (tilemap && terrainCosts)
+      ? getTerrainSpeedMod(tilemap, terrainCosts, pos.x, pos.y)
+      : 1;
 
     if (driveInput !== 0) {
       const maxSpd = (driveInput > 0 ? tank.maxForwardSpeed : tank.maxReverseSpeed) * speedFactor * buffSpeedMod * terrainMod;

@@ -58,11 +58,6 @@ export const ARENA_GEN_CONFIG: MapGenConfig = {
 // Decor scatter configuration
 // ---------------------------------------------------------------------------
 
-export interface GroundDecorEntry {
-  decors: DecorId[];
-  probability: number;
-}
-
 export interface NearWallEntry {
   decors: DecorId[];
   probability: number;
@@ -70,44 +65,64 @@ export interface NearWallEntry {
   adjacentObjects: ObjectId[];
 }
 
-export interface HedgehogEntry {
-  /** Probability per open interior cell. */
+export interface BorderScatterEntry {
+  decors: DecorId[];
   probability: number;
-  /** Manhattan distance from any spawn point below which hedgehogs are suppressed. */
+  /** Max number of decors to place per tile (1-3). */
+  maxCount: number;
+}
+
+export interface ByGroundEntry {
+  decors: DecorId[];
+  probability: number;
+  /** Max number of decors to place per tile (1-3). */
+  maxCount: number;
+}
+
+export interface HedgehogConfig {
+  probability: number;
+  /** Minimum tile distance from any spawn point — hedgehogs suppressed within. */
   minDistFromSpawn: number;
 }
 
-/**
- * Controls all three post-load decor passes.
- * All numeric values are config-driven — no inline magic numbers.
- */
+/** Controls all three decor + hedgehog scatter passes. */
 export interface DecorScatterConfig {
-  border:   { decors: DecorId[]; probability: number };
-  byGround: Partial<Record<TileId, GroundDecorEntry>>;
+  /** Pass 1: perimeter cells with no object. */
+  border: BorderScatterEntry;
+  /** Pass 2a: contextual scatter by ground type. */
+  byGround: Partial<Record<TileId, ByGroundEntry>>;
+  /** Pass 2b: near-wall industrial scatter. */
   nearWall: NearWallEntry;
-  hedgehog: HedgehogEntry;
+  /** Pass 3: hedgehog obstacle placement. */
+  hedgehog: HedgehogConfig;
 }
 
 const BLAST_TRAILS: DecorId[] = [
-  DecorId.BLAST_TRAIL_1, DecorId.BLAST_TRAIL_2, DecorId.BLAST_TRAIL_3,
-  DecorId.BLAST_TRAIL_4, DecorId.BLAST_TRAIL_5, DecorId.BLAST_TRAIL_6,
+  DecorId.BLAST_1, DecorId.BLAST_2, DecorId.BLAST_3,
+  DecorId.BLAST_4, DecorId.BLAST_5, DecorId.BLAST_6,
 ];
-const BORDERS: DecorId[] = [DecorId.BORDER_A, DecorId.BORDER_B, DecorId.BORDER_C];
+
 const PUDDLES: DecorId[] = [
   DecorId.PUDDLE_1, DecorId.PUDDLE_2, DecorId.PUDDLE_3,
   DecorId.PUDDLE_4, DecorId.PUDDLE_5, DecorId.PUDDLE_6,
 ];
 
+const BORDERS: DecorId[] = [DecorId.BORDER_A, DecorId.BORDER_B, DecorId.BORDER_C];
+
 export const DECOR_SCATTER_CONFIG: DecorScatterConfig = {
-  border: { decors: BORDERS, probability: 0.35 },
+  border: {
+    decors: BORDERS,
+    probability: 0.35,
+    maxCount: 1,
+  },
   byGround: {
-    [TileId.STONE]: { decors: BLAST_TRAILS, probability: 0.10 },
-    [TileId.DIRT]:  { decors: PUDDLES,      probability: 0.12 },
-    [TileId.MUD]:   { decors: PUDDLES,      probability: 0.18 },
+    [TileId.STONE]: { decors: BLAST_TRAILS, probability: 0.18, maxCount: 1 },
+    [TileId.DIRT]:  { decors: PUDDLES,      probability: 0.15, maxCount: 2 },
+    [TileId.MUD]:   { decors: PUDDLES,      probability: 0.20, maxCount: 3 },
   },
   nearWall: {
     decors: [],
-    probability: 0.20,
+    probability: 0,
     adjacentObjects: [ObjectId.WALL, ObjectId.BLOCK],
   },
   hedgehog: {

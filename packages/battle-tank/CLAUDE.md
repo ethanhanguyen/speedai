@@ -17,7 +17,7 @@ src/
 ├── main.ts              Entry: engine, assets, 4 scenes, ObjectPoolSystem, EventBus, game loop
 ├── config/
 │   ├── EngineConfig.ts  Canvas 960x540, FPS, entity cap
-│   ├── MapConfig.ts     Tile size (64px)
+│   ├── MapConfig.ts     Tile size (64px), Rotation enum (0/90/180/270), MULTI_TILE config (continuationChar='+', defaultPivot)
 │   ├── TankConfig.ts    TankDef (hull/tracks/turret/weapon/movement/armorKit?) + 7 enemy defs (3 armored); player tank assembled from loadout
 │   ├── InfantryConfig.ts InfantryDef, InfantryAnimState, INFANTRY_ANIM_TABLE (3 soldiers × 7 states), FORMATION_SLOTS, SQUAD_CONFIG, 3 unit defs (MG/Shotgun/Rifled)
 │   ├── WeaponConfig.ts  WeaponBehavior union + UnitClass + TurretVisual + WeaponDef (incl turret + weight) + GUN_01-08 + AI guns + 3 infantry weapons + WEAPON_REGISTRY + PLAYER_WEAPONS
@@ -33,7 +33,7 @@ src/
 │   ├── GarageConfig.ts  GARAGE_LAYOUT pixel rects, GARAGE_STYLE colors/fonts, SLOT_CATEGORIES, FLAVOR_TEXT
 │   ├── MapRegistry.ts   MapEntry, MAP_REGISTRY (2 maps), getSelectedMapId/setSelectedMapId/getSelectedMap
 │   ├── MapSelectConfig.ts Card layout, thumbnail cellPx, tileColors/objectColors (shared with MiniMap), spawnColors
-│   ├── MapGenDefaults.ts SURVIVAL_GEN_CONFIG + ARENA_GEN_CONFIG presets; DecorScatterConfig + DECOR_SCATTER_CONFIG (border/byGround/nearWall/hedgehog)
+│   ├── MapGenDefaults.ts SURVIVAL_GEN_CONFIG + ARENA_GEN_CONFIG presets; DecorScatterConfig (border/byGround/hedgehog, maxCount per entry) + DECOR_SCATTER_CONFIG
 │   └── AirUnitConfig.ts  [Phase 6] AirUnitDef (3 units); bladeRPM, altitude, shadowAlpha, shadowXFactor, shadowYFactor, bombDropIntervalMs, flythroughSpeedPx, waveThresholds
 ├── components/
 │   ├── Projectile.ts    ProjectileComponent {weaponDef, ownerId, elapsed, lifetimeOverride?, bouncesRemaining, piercesRemaining, hitEntities, splashTarget?}
@@ -45,10 +45,11 @@ src/
 │   ├── Beam.ts          BeamComponent (laser VFX, held by HitscanSystem not EntityManager)
 │   └── Bomb.ts          BombComponent {type, state: BombState, elapsedMs, ownerId, detonated}
 ├── tilemap/
-│   ├── types.ts         TileId (8), ObjectId (incl HEDGEHOG), DecorId (20), TileCell {ground, object, decor?}, MapData
-│   ├── TileRegistry.ts  TILE_DEFS, OBJECT_DEFS (ObjectDef.spriteVariants? for position-hash variant pick), DECOR_DEFS (DecorDef: spriteKey+scale? only — no gameplay flags), CHAR_MAP (H=hedgehog)
-│   ├── TilemapLoader.ts parseTilemap() → GridModel<TileCell> + MapData (decor=undefined on all cells)
-│   └── TilemapRenderer.ts drawTilemap() — 3 passes: ground+tint → decor (centered+scaled) → objects (resolveObjectSprite via position hash)
+│   ├── types.ts         TileId (8), ObjectId (incl HEDGEHOG), DecorId (15), TileCell {ground, object, decors?, multiTileAnchor?, objectRotation?}, MapData
+│   ├── TileRegistry.ts  ObjectDef {gridSpan?, orientations?, displaySize?, pivot?}, TILE_DEFS, OBJECT_DEFS (Block=2×2, Container=1×2), DECOR_DEFS, CHAR_MAP ('+'=continuation cell)
+│   ├── TilemapLoader.ts parseTilemap() — handles multi-tile objects (anchor+'+'s), assigns rotations via hash, marks continuation cells with multiTileAnchor
+│   ├── TilemapRenderer.ts bakeTilemapGroundLayer()+drawGroundLayer()+drawObjectLayer() — ground rotation+tint+transitions → decor → multi-tile objects with rotation/pivot
+│   └── MultiTileUtils.ts Centralized utilities: getRotatedDimensions(), getOccupiedCells(), resolveAnchor(), isContinuationCell()
 ├── tank/
 │   ├── TankParts.ts         TankPartsComponent — recoilOffset/recoilVelocity (spring-damper) + hitFlash*
 │   ├── TankAssembler.ts     createTank() → Position+Velocity+TankParts+Weapon+Health+Tag+(ArmorKit)
@@ -101,16 +102,18 @@ src/
 │   ├── GameplayScene.ts Orchestrates all systems, AI, waves, SlowMotion; reads getSelectedMap().ascii; MiniMap
 │   └── GameOverScene.ts Stats display + Play Again / Garage / Menu buttons
 └── maps/
-    ├── survival_01.ts   24x18 handcrafted ASCII map (4 spawns, symmetric)
-    ├── arena_01.ts      24x18 desert arena map (generated seed 7, hand-tuned)
-    ├── MapGenerator.ts  generateMap(config, seed?) — seeded PRNG, symmetry, BFS connectivity; applyDecorPasses(grid, meta, config, seed) — 3 post-parse passes
-    └── survival_01.ts, arena_01.ts — handcrafted/generated ASCII maps; decor applied at load time via applyDecorPasses
+    ├── survival_01.ts   24x18 handcrafted ASCII map (4 spawns, symmetric, multi-tile objects with '+' continuations)
+    ├── arena_01.ts      24x18 desert arena map (symmetric, realistic container/block placement)
+    ├── MapGenerator.ts  generateMap(config, seed?) — multi-tile aware placement, seeded PRNG, symmetry, BFS connectivity; applyDecorPasses(grid, meta, config, seed)
+    └── survival_01.ts, arena_01.ts — handcrafted ASCII maps with multi-tile notation (B=2×2 block anchor, C=1×2 container anchor, +=continuation); decor applied at load time
 ```
 
 ## Key Patterns
 
-- **Three-layer tilemap**: `TileCell = { ground: TileId; object: ObjectId; decor?: DecorId }`. Ground=terrain cost/walkability. Object=collision/HP/projectile-block (with `spriteVariants?` for visual variety, position-hash selected). Decor=render-only (no gameplay flags on `DecorDef`). Absence of decor is `undefined`, not a sentinel enum value. Render order: ground+tint → decor → objects.
-- **applyDecorPasses**: Called in `GameplayScene.init()` after `parseTilemap()` for every map. Three passes: border decor, contextual ground/wall-adjacency scatter, hedgehog object placement. Config in `DECOR_SCATTER_CONFIG`. Seed from `MapEntry.decorSeed`.
+- **Three-layer tilemap**: `TileCell = { ground: TileId; object: ObjectId; decors?: DecorId[]; multiTileAnchor?; objectRotation? }`. Ground=terrain cost/walkability. Object=collision/HP/projectile-block (with `spriteVariants?` for visual variety, position-hash selected). Decor=render-only (no gameplay flags on `DecorDef`); **multiple decors per tile** allowed. Absence is `undefined`, not `[]`. Render order: ground+rotation+tint+transitions → decors (loop, decorHash for scale/offset) → objects.
+- **Multi-tile objects**: `ObjectDef.gridSpan` (w×h cells), `orientations` (allowed rotations), `displaySize` (px override), `pivot` (normalized anchor). Blocks=2×2, Containers=1×2. ASCII maps use anchor char (B/C) + continuation marker (+). Collision/HP/rendering all resolve to anchor cell. Rotation picked via position hash from allowed orientations. **Centralized utilities** in `MultiTileUtils.ts`: `getRotatedDimensions()` swaps w/h for 90°/270° rotations; `getOccupiedCells()` enumerates all cells; `resolveAnchor()` follows continuation→anchor chain; `isContinuationCell()` detects continuation markers. Used by renderer (rotation-aware centering), collision system (correct bounds), HP tracker (destruction cleanup), and loader (placement).
+- **applyDecorPasses**: Called in `GameplayScene.init()` after `parseTilemap()` for every map. Three passes: border decor (maxCount=1), contextual ground scatter (blast trails on stone, puddles 2-3× on dirt/mud), hedgehog object placement. Config in `DECOR_SCATTER_CONFIG`. Seed from `MapEntry.decorSeed`. Each decor gets position-hash-derived scale (from scaleRange) + offset (from offsetRange).
+- **DecorDef variation**: `scaleRange: {min,max}` + `offsetRange?: {x,y}` per decor. `decorHash(r,c,i)` deterministically picks scale in range and offset from tile center. Same tile coords → same appearance (stable baked layer). Puddles stack 2-3× on wet terrain with varied positions.
 - **No magic numbers**: All constants in `config/`. Tile behavior in `TileRegistry.ts`. Weapon stats in `WeaponConfig.ts`. AI params in `AIConfig.ts`. Wave table in `WaveConfig.ts`. VFX params in `CombatConfig.ts`. Armor multipliers in `ArmorConfig.ts`. Bomb params in `BombConfig.ts`. Drop items + weighted tables + physics in `DropConfig.ts`. Timed buff/debuff defs in `BuffConfig.ts`. Map registry + selection in `MapRegistry.ts`. Map generator presets in `MapGenDefaults.ts`. Map select UI + shared tile colors in `MapSelectConfig.ts`. Mini-map display in `MAP_CONFIG.MINI_MAP`. Air unit stats in `AirUnitConfig.ts`.
 - **[Phase 6] Air unit layer**: Tag `'air'` is the universal system guard. `TileCollisionSystem` early-exits on `'air'`. `EntityCollisionSystem` checks `WeaponDef.targetLayer ('ground'|'air'|'all')` before hit. `FlowField`/`AISystem` skip air entities; `AirAISystem` uses direct-vector movement. Render order: shadow (body sprite, low alpha, offset by altitude×factors) → body (`DEPTH.AIR`) → blade (rotated by `bladeAngle`, incremented `bladeRPM × dt`). All numeric values in `AirUnitConfig.ts`.
 - **[Phase 6] Enemy bombs**: `BombSystem.placeBomb()` extended with `sourceFaction: 'player'|'enemy'`. Enemy proximity bombs reuse existing player-position proximity scan. Bombing plane drops bombs via this path; otherwise uses identical arm/fuse state machine.
@@ -175,8 +178,8 @@ Individual PNGs in `public/sprites/`:
 - `hulls/` — Hull_01..08 (8 hulls, all 256x256)
 - `tracks/` — Track_1..4_A/B (8 tracks, all 42x246)
 - `weapons/` — Gun_01..08 (8 guns, varying sizes)
-- `tiles/` — Ground tiles (5 ground + Snow + Water), Block, Container A/B/C/D, Wall, Czech_Hdgehog_A/B
-- `decor/` — Blast_Trail_01-06, Border_A/B/C, Puddle_01-06
+- `tiles/` — Ground tiles (Dirty_Road_1/2, Grass_1, Dirty_Road_Winter_1, Water_1), Block, Container A/B/C/D, Wall, Czech_Hdgehog_A/B
+- `decor/` — Blast_Trail_01-06, Border_A/B/C, Puddle_01-06 (15 total; pipes removed)
 - `effects/` — 7 shell types (Medium/Light/Heavy/Sniper/Grenade/Shotgun/Plasma) + Laser, muzzle flash (4), impact (4), explosion (9)
 - `coins/` — Gold_1..8.png (8-frame spin loop)
 - `icons/` — 13 `*_Bonus/*_Debuff.png` (world drops, 128x128), 9 `*_Icon.png` (HUD status), Coin_A/B.png

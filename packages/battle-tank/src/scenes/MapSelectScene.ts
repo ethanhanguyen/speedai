@@ -16,12 +16,14 @@ const CFG = MAP_SELECT_CONFIG;
 // Thumbnail rendering
 // ---------------------------------------------------------------------------
 
-function buildThumbnail(ascii: string): OffscreenCanvas {
+function buildThumbnail(ascii: string): HTMLCanvasElement {
   const lines = ascii.split('\n');
   const rows = lines.length;
   const cols = lines[0]?.length ?? 0;
   const cellPx = CFG.thumbnail.cellPx;
-  const oc = new OffscreenCanvas(cols * cellPx, rows * cellPx);
+  const oc = document.createElement('canvas');
+  oc.width = cols * cellPx;
+  oc.height = rows * cellPx;
   const octx = oc.getContext('2d')!;
 
   for (let r = 0; r < rows; r++) {
@@ -74,7 +76,7 @@ const CARD_Y = (CH - CFG.card.height) / 2 - 30;
 // ---------------------------------------------------------------------------
 
 export class MapSelectScene extends Scene {
-  private thumbnails: OffscreenCanvas[] = [];
+  private thumbnails: HTMLCanvasElement[] = [];
   private backBtn!: Button;
   private deployBtn!: Button;
   private hoveredIndex = -1;

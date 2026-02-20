@@ -1275,6 +1275,81 @@ Source: `craftpix-976411` Decor_Items
 
 ---
 
+## Phase 5.8: TerrainCostSystem + Tile Texture Coherence — COMPLETE
+
+**Gate**: Track-specific move costs (Narrow Steel +10% road, −30% mud; Wide Rubber ignores mud). Ground tiles visually non-repeating. Terrain seams soft-blended. Static ground layer costs 1 drawImage/frame.
+
+### What's Built
+
+| File | Purpose |
+|------|---------|
+| `systems/TerrainCostSystem.ts` | `getTerrainSpeedMod(tilemap, costs, wx, wy)` — single source of truth for terrain-speed lookup |
+| `game-engine/src/utils/LayerCache.ts` | `bakeLayer(config, drawFn)` + `drawLayerSlice()` — generic static-layer baking |
+
+**Tier A — Deterministic per-cell 90° rotation** (breaks uniform repeat without new art):
+- `TilemapRenderer.ts`: `groundRotationIndex(r, c)` hashes position to 0–3; `drawGroundTile()` applies `ctx.transform` + `ctx.resetTransform` (no save/restore) at bake time.
+
+**Tier B — Cross-terrain alpha-blend transition pass** (softens hard seams):
+- 4-direction neighbor loop in bake: where `TileId` differs, overdraw neighbour sprite at `transitionAlpha` clipped to the half-tile strip facing the boundary.
+
+**Tier C — Static ground layer baked to OffscreenCanvas** (N×M → 1 drawImage/frame):
+- `bakeTilemapGroundLayer()` renders ground + transitions + decor into a single `OffscreenCanvas` at scene init. Per frame: `drawLayerSlice()` draws the camera-visible slice. Object layer stays per-tile (destructibles change at runtime).
+
+**Pipe decor wired** (assets existed since Phase 5.7 but had no `DecorId` mapping):
+- `types.ts`: `PIPE_A1/A2/B/C1/C2` added to `DecorId`. `TileRegistry.ts`: 5 new `DECOR_DEFS` entries (0.8–0.9× scale). `MapGenDefaults.ts`: `nearWall.decors = PIPES` (probability 0.22).
+
+### Terrain Cost Table
+
+| Track | grass | dirt | stone (road) | mud | sand | ice | water | puddle |
+|-------|-------|------|------|-----|------|-----|-------|--------|
+| Narrow Steel  | 1.0 | 0.95 | **1.1** | **0.7** | 0.75 | 0.85 | 0.4  | 0.9 |
+| Wide Rubber   | 1.0 | 0.95 | 1.05 | **1.0** | **0.9** | 0.85 | **0.55** | 0.9 |
+| Spiked Treads | 1.0 | 0.95 | 1.05 | **0.8** | **0.85** | **1.0** | 0.4  | 0.9 |
+| Hover Pads    | 1.0 | 0.95 | 1.05 | **0.85** | 0.75 | **0.75** | **0.85** | 0.9 |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `systems/TerrainCostSystem.ts` | New — `getTerrainSpeedMod()` |
+| `config/PartRegistry.ts` | Narrow Steel mud 0.5→0.7, Wide Rubber mud 0.9→1.0 |
+| `systems/TankMovementSystem.ts` | Inline terrain lookup → `getTerrainSpeedMod()` call |
+| `game-engine/src/utils/LayerCache.ts` | New — `bakeLayer` / `drawLayerSlice` |
+| `game-engine/src/index.ts` | Export `LayerCache`, `bakeLayer`, `drawLayerSlice` |
+| `config/MapConfig.ts` | Added `TILE_COHERENCE` block: `hashRowPrime`, `hashColPrime`, `transitionAlpha` |
+| `tilemap/types.ts` | Added `PIPE_A1/A2/B/C1/C2` to `DecorId` |
+| `tilemap/TileRegistry.ts` | Added `spriteVariants?` to `TileDef`; 5 new `DECOR_DEFS` pipe entries |
+| `tilemap/TilemapRenderer.ts` | `groundRotationIndex()`, `drawGroundTile()`, `bakeTilemapGroundLayer()`, updated `drawTilemap()` |
+| `config/MapGenDefaults.ts` | `nearWall.decors = PIPES`, probability 0.20 → 0.22 |
+| `scenes/GameplayScene.ts` | `groundCache` field; bake in `init()`; pass to `drawTilemap()` |
+| `main.ts` | 5 pipe decor sprite loads |
+
+### Decisions Made
+
+- **TerrainCostSystem as dedicated module** — extracted from `TankMovementSystem`; values corrected to spec.
+- **Rotation not sprite variants** — only 3 ground sprites exist; rotation gives equivalent variation without new art. `ctx.resetTransform()` avoids save/restore overhead inside bake loop.
+- **Half-tile strip for transitions** — consistent width regardless of terrain pair. Baked → zero per-frame cost.
+- **`LayerCache` in engine, not game package** — any game with a static background benefits. API: 2 functions.
+- **Object layer stays per-frame** — containers are destructible; their removal must be reflected immediately.
+
+### Config Surface (new)
+
+| Config | Controls |
+|--------|----------|
+| `MAP_CONFIG.TILE_COHERENCE.hashRowPrime` | Row weight in position hash (31) |
+| `MAP_CONFIG.TILE_COHERENCE.hashColPrime` | Col weight in position hash (17) |
+| `MAP_CONFIG.TILE_COHERENCE.transitionAlpha` | Terrain seam blend opacity (0.28) |
+| `DecorScatterConfig.nearWall.decors` | Pipe prop pool |
+| `DecorScatterConfig.nearWall.probability` | Near-wall scatter density (0.22) |
+
+### Bug Fixes (post-implementation)
+
+| Fix | Root Cause | Solution |
+|-----|-----------|----------|
+| Tiles render only at top-left corner | `drawLayerSlice` used screen-space destination `(-vw/2, -vh/2)` inside already camera-transformed context | Changed destination to `(sx, sy)` world-space top-left; camera transform maps it to screen (0, 0) |
+
+---
+
 ## Phase 6: Air Units — PENDING
 
 **Gate**: Scout + combat helicopters from Wave 7. Bombing plane flythrough from Wave 8. All air units fly over terrain. Player can engage with any weapon.
@@ -1338,3 +1413,131 @@ Source: `/Users/hoang/Downloads/airforce/`
 | `heli-combat-body` | `helicopter_combat_body_1.png` | Combat Helicopter |
 | `heli-combat-blade` | `helicopter_combat_blade_1.png` | Combat Helicopter blade |
 | `bombing-plane` | `bombing_plane_1.png` | Bombing Plane |
+
+---
+
+## Phase 5.5: Decor System Improvements — COMPLETED
+
+**Changes**: Multi-decor per tile, scale/position variation via config-driven ranges, pipe decor removal, winter road sprite.
+
+### Implementation Summary
+
+| Component | Change |
+|-----------|--------|
+| `tilemap/types.ts` | `TileCell.decor?: DecorId` → `decors?: DecorId[]` (multi-decor support) |
+| `tilemap/TileRegistry.ts` | `DecorDef`: `scale?` → `scaleRange: {min,max}`, added `offsetRange?: {x,y}` |
+| `tilemap/TileRegistry.ts` | Removed PIPE_A1/A2/B/C1/C2 entries; updated all DECOR_DEFS with ranges |
+| `tilemap/TileRegistry.ts` | `TileId.ICE` sprite: `ground-snow` → `ground-winter` |
+| `config/MapGenDefaults.ts` | Added `maxCount` to scatter configs; removed PIPES array, zeroed `nearWall` |
+| `tilemap/TilemapRenderer.ts` | Added `decorHash()` for deterministic variation; loop `cell.decors[]` |
+| `maps/MapGenerator.ts` | Scatter loop places up to `maxCount` decors per tile (60% per-decor chance) |
+| `main.ts` | Removed 5 pipe sprite loads; updated `ground-winter` path |
+| `maps/survival_01.ts` | Regenerated: Winter Outpost (frozen pond, mud zones, dirt supply roads) |
+| `maps/arena_01.ts` | Regenerated: Desert Compound (concrete roads, sand zones, symmetrical) |
+
+### Decor Definitions (Config-Driven)
+
+| DecorId | Scale Range | Offset Range | Usage |
+|---------|-------------|--------------|-------|
+| BLAST_1–6 | 0.9–1.1 | ±6px | Stone terrain (battle damage, 1 per tile) |
+| BORDER_A–C | 0.85–1.0 | ±4px | Perimeter cells (edge clutter, 1 per tile) |
+| PUDDLE_1–6 | 0.5–0.8 | ±10px | Dirt (max 2), Mud (max 3) — small, stackable |
+
+### Scatter Config
+
+| Pass | Decors | Probability | Max Count |
+|------|--------|-------------|-----------|
+| Border | BORDERS | 0.35 | 1 |
+| Stone ground | BLAST_TRAILS | 0.18 | 1 |
+| Dirt ground | PUDDLES | 0.15 | 2 |
+| Mud ground | PUDDLES | 0.20 | 3 |
+| Near-wall | (removed) | 0 | 0 |
+
+### Decisions Made
+
+- **Position-hash variation** — `decorHash(r,c,i)` ensures deterministic scale/offset per tile+decorIndex
+- **Multi-decor stacking** — Mud can have 2–3 puddles for realistic wet zones; 60% per-decor probability avoids always maxing out
+- **Config surface** — All ranges in DECOR_DEFS; designers tweak without touching renderer
+- **Winter road sprite** — ICE terrain now uses `Ground_Tile_Dirty_Road_Winter_1.png` (slippery frozen roads)
+- **Pipe removal** — Industrial pipes removed; battlefield theme (borders, blast trails, puddles only)
+- **Map regeneration** — survival_01 (winter siege) + arena_01 (desert compound) recreated with tactical layouts
+
+### Benefits
+
+- **Visual variety**: Same asset reused at different scales/positions → richer maps without new art
+- **Deterministic**: Position-hash ensures stable per-tile appearance (no per-frame RNG)
+- **Designer-friendly**: All variation controlled via config ranges
+- **Realistic scatter**: Mud gets 2–3 puddles; dirt gets 1–2 (matches wetness)
+
+
+---
+
+## Phase 5.6: Multi-Tile Rotation Fixes + Centralization — COMPLETED
+
+**Goal**: Fix container rendering distortion and collision bugs with rotated multi-tile objects. Centralize multi-tile logic to eliminate code duplication.
+
+### Bugs Fixed
+
+**Bug 1: Container rendering distortion**
+- **Root cause**: `TilemapRenderer.drawObjectLayer` calculated center using unrotated `gridSpan`
+- **Example**: 1×2 container rotated 90° should occupy 2×1 visual space, but center was calculated for 1×2
+- **Fix**: Use `getRotatedDimensions(gridSpan, rotation)` to swap w/h for 90°/270° rotations
+
+**Bug 2: Tank collision with rotated objects**
+- **Root cause**: `TileCollisionSystem.isAreaWalkable` used unrotated `gridSpan` for bounds checking
+- **Example**: Rotated container had collision box misaligned with visual sprite
+- **Fix**: Resolve anchor and use utilities for consistent multi-tile handling
+
+### Implementation
+
+**New file: `tilemap/MultiTileUtils.ts`**
+
+Centralized utilities (single source of truth):
+```typescript
+getRotatedDimensions(gridSpan, rotation) → {w, h}
+  // 90°/270°: swap w↔h; 0°/180°: unchanged
+
+getOccupiedCells(anchorR, anchorC, gridSpan, rotation) → Array<{r, c}>
+  // Enumerate all grid cells (currently uses unrotated gridSpan for footprint)
+
+resolveAnchor(r, c, grid) → {r, c}
+  // Follow continuation cell → anchor chain
+
+isContinuationCell(cell) → boolean
+  // Check if cell has multiTileAnchor
+```
+
+**Updated consumers:**
+
+| File | Change | Lines Saved |
+|------|--------|-------------|
+| `TilemapRenderer.ts` | Import `getRotatedDimensions`; use for center calculation (line 314-316) | ~0 (new logic) |
+| `TileCollisionSystem.ts` | Import `resolveAnchor`; replace inline `resolveObjectId()` function | ~12 |
+| `TileHPTracker.ts` | Import `resolveAnchor`, `getOccupiedCells`; remove private method, use utilities | ~15 |
+| `TilemapLoader.ts` | Import `getOccupiedCells`; replace manual continuation loop | ~8 |
+
+**Total**: ~35 lines of duplicated logic eliminated.
+
+### Decisions Made
+
+- **Rotation-aware dimensions**: Visual rendering uses rotated dimensions; grid footprint remains axis-aligned (rotation affects visual only)
+- **Centralized anchor resolution**: All systems use same `resolveAnchor()` logic (no drift between collision/HP/rendering)
+- **Occupied cell enumeration**: Single implementation in `getOccupiedCells()` used by loader, HP tracker
+- **Pure functions**: All utilities are stateless, no side effects, easy to test
+
+### Benefits
+
+- **Bug fixes**: Container rendering now centered correctly when rotated; collision bounds match visual sprite
+- **Code quality**: Eliminated 4 instances of duplicated multi-tile logic across codebase
+- **Maintainability**: Future rotation changes (e.g., 45° support) need only update `MultiTileUtils.ts`
+- **Consistency**: All systems use identical anchor resolution and cell enumeration logic
+
+### Files Modified
+
+- **New**: `src/tilemap/MultiTileUtils.ts` (centralized utilities)
+- **Updated**: `src/tilemap/TilemapRenderer.ts` (rotation-aware center)
+- **Updated**: `src/systems/TileCollisionSystem.ts` (use `resolveAnchor`)
+- **Updated**: `src/combat/TileHPTracker.ts` (use utilities)
+- **Updated**: `src/tilemap/TilemapLoader.ts` (use `getOccupiedCells`)
+- **Docs**: `CLAUDE.md` (added MultiTileUtils to architecture, updated Key Patterns)
+- **Docs**: `PROGRESS.md` (this section)

@@ -1,7 +1,7 @@
 import type { GridModel } from '@speedai/game-engine';
-import { TileId, ObjectId } from '../tilemap/types.js';
+import { TileId, ObjectId, DecorId } from '../tilemap/types.js';
 import type { TileCell, MapData } from '../tilemap/types.js';
-import { CHAR_MAP } from '../tilemap/TileRegistry.js';
+import { CHAR_MAP, OBJECT_DEFS } from '../tilemap/TileRegistry.js';
 import type { DecorScatterConfig } from '../config/MapGenDefaults.js';
 
 export type MapSymmetry = 'none' | 'h' | 'v' | 'quad';
@@ -59,6 +59,58 @@ function weightedPick<T>(rng: () => number, entries: [T, number][]): T {
 function mirrorC(c: number, cols: number): number { return cols - 1 - c; }
 /** Mirror row index for vertical symmetry. */
 function mirrorR(r: number, rows: number): number { return rows - 1 - r; }
+
+/**
+ * Attempt to place a multi-tile object at (r, c).
+ * Returns true if placed successfully, false if blocked.
+ */
+function tryPlaceMultiTileObject(
+  grid: string[][],
+  r: number,
+  c: number,
+  objectChar: string,
+  rows: number,
+  cols: number,
+  rng: () => number,
+): boolean {
+  const charDef = CHAR_MAP[objectChar];
+  if (!charDef) return false;
+
+  const objDef = OBJECT_DEFS[charDef.object];
+  const gridSpan = objDef.gridSpan ?? { w: 1, h: 1 };
+  const orientations = objDef.orientations ?? [0];
+
+  // Pick random rotation
+  const rotation = orientations[Math.floor(rng() * orientations.length)];
+
+  // For 90°/270° rotations, swap w/h
+  const span = (rotation === 90 || rotation === 270)
+    ? { w: gridSpan.h, h: gridSpan.w }
+    : gridSpan;
+
+  // Check if all cells are available
+  for (let dr = 0; dr < span.h; dr++) {
+    for (let dc = 0; dc < span.w; dc++) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= rows || nc >= cols) return false;
+      const cell = grid[nr][nc];
+      const cellDef = CHAR_MAP[cell];
+      if (!cellDef || cellDef.object !== ObjectId.NONE) return false;
+    }
+  }
+
+  // Place anchor + continuation cells
+  grid[r][c] = objectChar;
+  for (let dr = 0; dr < span.h; dr++) {
+    for (let dc = 0; dc < span.w; dc++) {
+      if (dr === 0 && dc === 0) continue; // Skip anchor
+      grid[r + dr][c + dc] = '+';
+    }
+  }
+
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // BFS connectivity: ensure player can reach every S spawn
@@ -179,20 +231,26 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
   }
   const blockCount = Math.round((interior.length * cfg.objectDensity.block) / 100);
   const contCount  = Math.round((interior.length * cfg.objectDensity.container) / 100);
-  // Shuffle a slice of interior cells for object placement
+
+  // Shuffle interior cells for object placement
   const shuffled = [...interior].sort(() => rng() - 0.5);
-  for (let i = 0; i < Math.min(blockCount, shuffled.length); i++) {
+
+  // Place blocks (multi-tile aware)
+  let placed = 0;
+  for (let i = 0; i < shuffled.length && placed < blockCount; i++) {
     const [r, c] = shuffled[i];
-    const terrain = CHAR_MAP[grid[r][c]].ground;
-    const groundCh = tileToChar[terrain] ?? '.';
-    grid[r][c] = 'B';
-    // Place on terrain (blocks share terrain char — handled by CHAR_MAP)
-    // Actually CHAR_MAP 'B' maps to GRASS; so keep 'B' as-is (ground is grass under block)
-    void groundCh;
+    if (tryPlaceMultiTileObject(grid, r, c, 'B', rows, cols, rng)) {
+      placed++;
+    }
   }
-  for (let i = blockCount; i < Math.min(blockCount + contCount, shuffled.length); i++) {
+
+  // Place containers (multi-tile aware)
+  placed = 0;
+  for (let i = 0; i < shuffled.length && placed < contCount; i++) {
     const [r, c] = shuffled[i];
-    grid[r][c] = 'C';
+    if (tryPlaceMultiTileObject(grid, r, c, 'C', rows, cols, rng)) {
+      placed++;
+    }
   }
 
   // --- Apply symmetry ---
@@ -270,14 +328,12 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Apply three environment passes to a parsed GridModel after `parseTilemap()`.
- *
- * Pass 1 — Border decor: scatter decorative borders on perimeter cells.
- * Pass 2 — Contextual decor: ground-type-driven and wall-adjacency-driven decor.
- * Pass 3 — Hedgehog scatter: place ObjectId.HEDGEHOG on open interior cells.
- *
- * All probabilities and pools are config-driven via `DecorScatterConfig`.
+ * Apply three decor + hedgehog scatter passes to a parsed GridModel after `parseTilemap()`.
  * The seed produces a deterministic result for a given map + seed pair.
+ *
+ * Pass 1 — Border: perimeter cells with no object → random border decor.
+ * Pass 2 — Scatter: interior open cells → ground-type context decor + near-wall pipes.
+ * Pass 3 — Hedgehog: interior open non-water cells → ObjectId.HEDGEHOG obstacle.
  */
 export function applyDecorPasses(
   grid: GridModel<TileCell>,
@@ -287,57 +343,106 @@ export function applyDecorPasses(
 ): void {
   const rng = makePrng(seed);
   const { rows, cols } = meta;
-  const allSpawns = [...meta.spawnPoints, ...meta.enemySpawns];
+
+  // Build spawn point set for hedgehog suppression
+  const spawnKeys = new Set<string>();
+  for (const sp of [...meta.spawnPoints, ...meta.enemySpawns]) {
+    spawnKeys.add(`${sp.r},${sp.c}`);
+  }
+
+  function tileDistFromSpawn(r: number, c: number): number {
+    let min = Infinity;
+    for (const sp of [...meta.spawnPoints, ...meta.enemySpawns]) {
+      const d = Math.abs(r - sp.r) + Math.abs(c - sp.c);
+      if (d < min) min = d;
+    }
+    return min;
+  }
 
   // --- Pass 1: Border decor ---
   if (config.border.decors.length > 0) {
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (r !== 0 && r !== rows - 1 && c !== 0 && c !== cols - 1) continue;
+    for (let c = 0; c < cols; c++) {
+      for (const r of [0, rows - 1]) {
         const cell = grid.get(r, c);
-        if (!cell || cell.object !== ObjectId.NONE) continue;
+        if (!cell || cell.object !== ObjectId.NONE || (cell.decors && cell.decors.length > 0)) continue;
         if (rng() < config.border.probability) {
           const pool = config.border.decors;
-          const decor = pool[Math.floor(rng() * pool.length)];
-          grid.set(r, c, { ...cell, decor });
+          const decors: DecorId[] = [];
+          for (let i = 0; i < config.border.maxCount && rng() < 0.6; i++) {
+            const decorId = pool[Math.floor(rng() * pool.length)] as DecorId;
+            decors.push(decorId);
+          }
+          if (decors.length > 0) {
+            grid.set(r, c, { ...cell, decors });
+          }
+        }
+      }
+    }
+    for (let r = 1; r < rows - 1; r++) {
+      for (const c of [0, cols - 1]) {
+        const cell = grid.get(r, c);
+        if (!cell || cell.object !== ObjectId.NONE || (cell.decors && cell.decors.length > 0)) continue;
+        if (rng() < config.border.probability) {
+          const pool = config.border.decors;
+          const decors: DecorId[] = [];
+          for (let i = 0; i < config.border.maxCount && rng() < 0.6; i++) {
+            const decorId = pool[Math.floor(rng() * pool.length)] as DecorId;
+            decors.push(decorId);
+          }
+          if (decors.length > 0) {
+            grid.set(r, c, { ...cell, decors });
+          }
         }
       }
     }
   }
 
-  // --- Pass 2: Contextual interior scatter ---
+  // --- Pass 2: Interior scatter (byGround + nearWall) ---
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
       const cell = grid.get(r, c);
-      if (!cell || cell.object !== ObjectId.NONE || cell.decor !== undefined) continue;
+      if (!cell || cell.object !== ObjectId.NONE || (cell.decors && cell.decors.length > 0)) continue;
 
+      // 2a: Near-wall scatter (takes priority over ground scatter)
       const adjacentToWall = hasAdjacentObject(grid, r, c, rows, cols, config.nearWall.adjacentObjects);
-
       if (adjacentToWall && config.nearWall.decors.length > 0 && rng() < config.nearWall.probability) {
         const pool = config.nearWall.decors;
-        const decor = pool[Math.floor(rng() * pool.length)];
-        grid.set(r, c, { ...cell, decor });
-      } else {
-        const groundCfg = config.byGround[cell.ground];
-        if (groundCfg && groundCfg.decors.length > 0 && rng() < groundCfg.probability) {
-          const decor = groundCfg.decors[Math.floor(rng() * groundCfg.decors.length)];
-          grid.set(r, c, { ...cell, decor });
+        const decors: DecorId[] = [];
+        for (let i = 0; i < 1 && rng() < 0.6; i++) {
+          const decorId = pool[Math.floor(rng() * pool.length)] as DecorId;
+          decors.push(decorId);
+        }
+        if (decors.length > 0) {
+          grid.set(r, c, { ...cell, decors });
+        }
+        continue;
+      }
+
+      // 2b: Ground-type contextual scatter
+      const byGroundEntry = config.byGround[cell.ground];
+      if (byGroundEntry && byGroundEntry.decors.length > 0 && rng() < byGroundEntry.probability) {
+        const pool = byGroundEntry.decors;
+        const decors: DecorId[] = [];
+        for (let i = 0; i < byGroundEntry.maxCount && rng() < 0.6; i++) {
+          const decorId = pool[Math.floor(rng() * pool.length)] as DecorId;
+          decors.push(decorId);
+        }
+        if (decors.length > 0) {
+          grid.set(r, c, { ...cell, decors });
         }
       }
     }
   }
 
-  // --- Pass 3: Hedgehog scatter ---
-  const { probability, minDistFromSpawn } = config.hedgehog;
+  // --- Pass 3: Hedgehog placement ---
+  const waterTiles = new Set([TileId.WATER]);
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
       const cell = grid.get(r, c);
-      if (!cell || cell.object !== ObjectId.NONE || cell.ground === TileId.WATER) continue;
-
-      const tooClose = allSpawns.some(s => Math.abs(s.r - r) + Math.abs(s.c - c) < minDistFromSpawn);
-      if (tooClose) continue;
-
-      if (rng() < probability) {
+      if (!cell || cell.object !== ObjectId.NONE) continue;
+      if (waterTiles.has(cell.ground)) continue;
+      if (tileDistFromSpawn(r, c) < config.hedgehog.minDistFromSpawn) continue;
+      if (rng() < config.hedgehog.probability) {
         grid.set(r, c, { ...cell, object: ObjectId.HEDGEHOG });
       }
     }
