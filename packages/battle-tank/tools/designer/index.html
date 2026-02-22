@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle Tank Map Designer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Monaco', 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #ddd;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      padding: 8px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #ddd;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      border-radius: 3px;
+    }
+
+    button:hover {
+      background: #333;
+      border-color: #555;
+    }
+
+    button.active {
+      background: #00ff88;
+      color: #000;
+      border-color: #00ff88;
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: #333;
+      margin: 0 4px;
+    }
+
+    /* Main layout */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left panel */
+    #left-panel {
+      width: 20%;
+      background: #1a1a1a;
+      border-right: 1px solid #333;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      margin-bottom: 20px;
+    }
+
+    .panel-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tool-btn {
+      padding: 8px;
+      text-align: left;
+      font-size: 11px;
+    }
+
+    /* Viewport */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #designer-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* Right panel (inspector) */
+    #right-panel {
+      width: 20%;
+      background: #1a1a1a;
+      border-left: 1px solid #333;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .inspector-row {
+      margin-bottom: 12px;
+    }
+
+    .inspector-row label {
+      display: block;
+      font-size: 10px;
+      color: #888;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .inspector-row select,
+    .inspector-row input {
+      width: 100%;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #ddd;
+      padding: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      border-radius: 3px;
+    }
+
+    .inspector-row select:focus,
+    .inspector-row input:focus {
+      outline: none;
+      border-color: #00ff88;
+    }
+
+    #validation-panel {
+      margin-top: 16px;
+      padding: 8px;
+      background: #0a0a0a;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .validation-ok {
+      color: #00ff88;
+    }
+
+    .validation-error {
+      color: #ff3333;
+    }
+
+    .validation-warning {
+      color: #ffaa00;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <button id="btn-load">Load</button>
+      <button id="btn-save">Save</button>
+      <button id="btn-export">Export .ts</button>
+      <div class="divider"></div>
+      <button id="btn-undo">Undo</button>
+      <button id="btn-redo">Redo</button>
+      <div class="divider"></div>
+      <span style="font-size: 11px; color: #666; flex: 1; text-align: right;">
+        Battle Tank Map Designer
+      </span>
+    </div>
+
+    <!-- Main layout -->
+    <div id="main">
+      <!-- Left panel: Tools -->
+      <div id="left-panel">
+        <div class="panel-section">
+          <h3>Tools</h3>
+          <div class="tool-group">
+            <button id="tool-select" class="tool-btn active">◉ Select</button>
+            <button id="tool-paint" class="tool-btn">🖌 Paint</button>
+            <button id="tool-erase" class="tool-btn">⌫ Erase</button>
+            <button id="tool-fill" class="tool-btn">⬚ Fill</button>
+            <button id="tool-rect" class="tool-btn">▭ Rect</button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Palette</h3>
+          <div class="inspector-row">
+            <label>Ground</label>
+            <select id="palette-ground">
+              <option value="grass">Grass</option>
+              <option value="dirt">Dirt</option>
+              <option value="stone">Stone</option>
+              <option value="mud">Mud</option>
+              <option value="sand">Sand</option>
+              <option value="ice">Ice</option>
+              <option value="water">Water</option>
+              <option value="puddle">Puddle</option>
+            </select>
+          </div>
+
+          <div class="inspector-row">
+            <label>Object</label>
+            <select id="palette-object">
+              <option value="none">None</option>
+              <option value="block">Block (2x2)</option>
+              <option value="container">Container (1x2)</option>
+              <option value="wall">Wall (1x1)</option>
+              <option value="hedgehog">Hedgehog (1x1)</option>
+            </select>
+          </div>
+
+          <div class="inspector-row">
+            <label>Rotation</label>
+            <select id="palette-rotation">
+              <option value="0">0°</option>
+              <option value="90">90°</option>
+              <option value="180">180°</option>
+              <option value="270">270°</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Shortcuts</h3>
+          <div style="font-size: 9px; color: #666; line-height: 1.6;">
+            <div><kbd>Ctrl+Z</kbd> Undo</div>
+            <div><kbd>Ctrl+Y</kbd> Redo</div>
+            <div><kbd>Ctrl+S</kbd> Save</div>
+            <div><kbd>G</kbd> Toggle Grid</div>
+            <div><kbd>Mid-Drag</kbd> Pan</div>
+            <div><kbd>Wheel</kbd> Zoom</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Viewport -->
+      <div id="viewport">
+        <canvas id="designer-canvas"></canvas>
+      </div>
+
+      <!-- Right panel: Inspector -->
+      <div id="right-panel">
+        <div class="panel-section">
+          <h3>Inspector</h3>
+          <div class="inspector-row">
+            <label>Position</label>
+            <div id="inspector-position" style="color: #00ff88; font-size: 12px;">-</div>
+          </div>
+
+          <div class="inspector-row">
+            <label>Ground</label>
+            <select id="inspector-ground">
+              <option value="grass">Grass</option>
+              <option value="dirt">Dirt</option>
+              <option value="stone">Stone</option>
+              <option value="mud">Mud</option>
+              <option value="sand">Sand</option>
+              <option value="ice">Ice</option>
+              <option value="water">Water</option>
+              <option value="puddle">Puddle</option>
+            </select>
+          </div>
+
+          <div class="inspector-row">
+            <label>Object</label>
+            <select id="inspector-object">
+              <option value="none">None</option>
+              <option value="block">Block</option>
+              <option value="container">Container</option>
+              <option value="wall">Wall</option>
+              <option value="hedgehog">Hedgehog</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="validation-panel">
+          <h3 style="font-size: 10px; margin-bottom: 6px;">Validation</h3>
+          <div id="validation-status" class="validation-ok">
+            • Load a map to begin
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

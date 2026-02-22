@@ -33,6 +33,8 @@
 - Build: `npm run build -w packages/battle-tank`
 - Preview: `npm run preview -w packages/battle-tank`
 - Typecheck: `npm run typecheck -w packages/battle-tank`
+- Map Designer: `npm run designer -w packages/battle-tank` → http://localhost:5174
+- Generate Map (LLM): `npm run generate-map -w packages/battle-tank -- --prompt "<goals>" --api-key <key>`
 
 **Demo (Arcade Landing Page):**
 - Dev: `npm run dev -w packages/demo`

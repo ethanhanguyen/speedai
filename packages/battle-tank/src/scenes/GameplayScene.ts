@@ -52,6 +52,8 @@ import type { ActiveEffect } from '../systems/BuffSystem.js';
 import type { GameHUDState, ScenePhase } from '../config/GameStateTypes.js';
 import { getSelectedDifficulty } from './MenuScene.js';
 import type { BombType } from '../config/BombConfig.js';
+import { DebugOverlay } from '../hud/DebugOverlay.js';
+import { DEBUG_CONFIG } from '../config/DebugConfig.js';
 
 /** Per-scene key state for weapon/bomb switching edge detection. */
 const WEAPON_KEY_STATE = new Set<string>();
@@ -103,6 +105,8 @@ export class GameplayScene extends Scene {
   private terrainCosts!: TerrainCosts;
   private miniMap!: MiniMapRenderer;
   private groundCache: import('@speedai/game-engine').LayerCache | undefined;
+  private debugOverlay = new DebugOverlay();
+  private lastFrameTime = performance.now();
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -380,6 +384,11 @@ export class GameplayScene extends Scene {
     if (playerPos) {
       this.waveSpawner.update(dt, playerPos.x, playerPos.y);
     }
+
+    // 14. Debug overlay toggle + update
+    this.debugOverlay.toggle(this.input.isJustPressed(DEBUG_CONFIG.toggleKey));
+    this.debugOverlay.update(dt);
+    this.lastFrameTime = dt > 0 ? 1 / dt : 60;
   }
 
   render(_alpha: number): void {
@@ -467,6 +476,14 @@ export class GameplayScene extends Scene {
     };
     this.hud.draw(ctx, this.canvas.width, this.canvas.height, hudState);
     this.miniMap.draw(ctx, this.canvas.width, this.canvas.height, this.entityManager, this.playerId);
+
+    // Debug overlay (screen-space, after all HUD)
+    this.debugOverlay.draw(ctx, {
+      em: this.entityManager,
+      waveSpawner: this.waveSpawner,
+      playerId: this.playerId,
+      fps: this.lastFrameTime,
+    });
 
     if (this.phase === 'game_over_transition') {
       const fadeAlpha = Math.min(1, this.transitionTimer / COMBAT_CONFIG.gameOverTransition.fadeIn);

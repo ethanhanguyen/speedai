@@ -182,6 +182,20 @@ async function main() {
     assets.loadImage('icon-magnet',   '/sprites/icons/Magnet_Icon.png'),
     assets.loadImage('icon-armor',    '/sprites/icons/Armor_Icon.png'),
     assets.loadImage('icon-mobility', '/sprites/icons/Mobility_Icon.png'),
+
+    // Boss sprites (Phase 6)
+    assets.loadImage('hull-warden',       '/sprites/bosses/Hull_Warden.png'),
+    assets.loadImage('gun-warden',        '/sprites/bosses/Gun_Warden.png'),
+    assets.loadImage('hull-scorpion',     '/sprites/bosses/Hull_Scorpion.png'),
+    assets.loadImage('gun-scorpion',      '/sprites/bosses/Gun_Scorpion.png'),
+    assets.loadImage('hull-fortress',     '/sprites/bosses/Hull_Fortress.png'),
+    assets.loadImage('gun-fortress',      '/sprites/bosses/Gun_Fortress.png'),
+    // Air unit sprites (Phase 6)
+    assets.loadImage('heli-scout-body',   '/sprites/airforce/helicopter_scout_body_1.png'),
+    assets.loadImage('heli-scout-blade',  '/sprites/airforce/helicopter_scout_blade_1.png'),
+    assets.loadImage('heli-combat-body',  '/sprites/airforce/helicopter_combat_body_1.png'),
+    assets.loadImage('heli-combat-blade', '/sprites/airforce/helicopter_combat_blade_1.png'),
+    assets.loadImage('bomber-plane',      '/sprites/airforce/bombing_plane_1.png'),
   ]);
 
   // --- Camera ---

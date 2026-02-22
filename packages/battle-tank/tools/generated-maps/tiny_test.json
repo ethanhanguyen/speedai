@@ -1,0 +1,625 @@
+{
+  "rows": 12,
+  "cols": 12,
+  "spawnPoints": [
+    {
+      "r": 3,
+      "c": 0
+    }
+  ],
+  "enemySpawns": [
+    {
+      "r": 3,
+      "c": 10
+    }
+  ],
+  "grid": [
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "stone",
+        "object": "wall"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "stone",
+        "object": "wall"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "container",
+        "objectRotation": 0
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "stone",
+        "object": "wall"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "stone",
+        "object": "wall"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "block",
+        "objectRotation": 0
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ],
+    [
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      },
+      {
+        "ground": "grass",
+        "object": "none"
+      }
+    ]
+  ],
+  "metadata": {
+    "theme": "Minimal Test Arena",
+    "prompt": "tiny test",
+    "generated": "2026-02-22T04:38:27.377Z"
+  }
+}

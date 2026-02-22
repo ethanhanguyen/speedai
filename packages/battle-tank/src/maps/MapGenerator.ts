@@ -257,7 +257,7 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
   const applySymmetry = (r: number, c: number, ch: string) => {
     const mir = (rr: number, cc: number) => {
       if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return;
-      if (grid[rr][cc] !== 'W' && grid[rr][cc] !== 'P' && grid[rr][cc] !== 'S') {
+      if (grid[rr][cc] !== 'W' && grid[rr][cc] !== '1' && grid[rr][cc] !== '2') {
         grid[rr][cc] = ch;
       }
     };
@@ -277,7 +277,7 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
   // --- Player spawn (center) ---
   const pR = Math.floor(rows / 2);
   const pC = Math.floor(cols / 2);
-  grid[pR][pC] = 'P';
+  grid[pR][pC] = '1';
 
   // --- Enemy spawns (corners / edges, round-robin) ---
   const spawnCandidates: [number, number][] = [
@@ -289,14 +289,14 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
   const spawnPoints: [number, number][] = [];
   for (let i = 0; i < spawnCount; i++) {
     const [sr, sc] = spawnCandidates[i];
-    grid[sr][sc] = 'S';
+    grid[sr][sc] = '2';
     spawnPoints.push([sr, sc]);
     // Clear radius around spawn
     for (let dr = -cfg.spawnClearRadius; dr <= cfg.spawnClearRadius; dr++) {
       for (let dc = -cfg.spawnClearRadius; dc <= cfg.spawnClearRadius; dc++) {
         const nr = sr + dr, nc = sc + dc;
         if (nr <= 0 || nr >= rows-1 || nc <= 0 || nc >= cols-1) continue;
-        if (grid[nr][nc] !== 'S' && grid[nr][nc] !== 'P' && grid[nr][nc] !== 'W') {
+        if (grid[nr][nc] !== '2' && grid[nr][nc] !== '1' && grid[nr][nc] !== 'W') {
           grid[nr][nc] = '.';
         }
       }
@@ -308,7 +308,7 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
     for (let dc = -cfg.spawnClearRadius; dc <= cfg.spawnClearRadius; dc++) {
       const nr = pR + dr, nc = pC + dc;
       if (nr <= 0 || nr >= rows-1 || nc <= 0 || nc >= cols-1) continue;
-      if (grid[nr][nc] !== 'P' && grid[nr][nc] !== 'W') grid[nr][nc] = '.';
+      if (grid[nr][nc] !== '1' && grid[nr][nc] !== 'W') grid[nr][nc] = '.';
     }
   }
 

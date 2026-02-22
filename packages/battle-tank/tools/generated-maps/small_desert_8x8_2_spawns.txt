@@ -1,0 +1,11 @@
+DESERT SKIRMISH - Asymmetric flanking with central water hazard
+Hardpan speed lanes (P) frame gravel chaos zone (G) and container cover (C)
+
+P . . . . . 2 P
+P . . G . . . P
+. . C . . W . .
+. . . . . W . .
+. G . . R . G .
+. . . . . . . .
+P . . G . . . P
+P 1 . . . . . P

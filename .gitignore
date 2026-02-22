@@ -8,3 +8,6 @@ GAME_SPEC_*
 *plan*.md
 tmp/
 output_*.png
+.env
+
+packages/battle-tank/map
