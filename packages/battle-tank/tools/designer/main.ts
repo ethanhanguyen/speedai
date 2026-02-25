@@ -245,26 +245,103 @@ function handleToolAction(r: number, c: number) {
 }
 
 /**
- * Load map from file.
+ * Load map from file(s).
+ * Accepts multiple files: map.json, map.jpg/png, map_symbols.json
+ * Auto-pairs files by basename.
  */
 function onLoadClick() {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = '.json';
+  input.multiple = true;
+  input.accept = '.json,.jpg,.jpeg,.png';
   input.onchange = async (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) {
-      const content = await file.text();
-      const result = loadMap(state, content);
-      if (result.ok) {
-        console.log('Map loaded successfully');
-        updateInspector();
-      } else {
-        alert(`Error loading map: ${(result as { ok: false; error: string }).error}`);
+    try {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length === 0) {
+        console.log('No files selected');
+        return;
       }
+
+      console.log('Files received:', files.map(f => f.name));
+
+      // Group files by basename
+      const filesByBase = new Map<string, File[]>();
+      for (const file of files) {
+        const base = file.name.replace(/\.(json|jpg|jpeg|png)$/i, '').replace(/_symbols$/, '');
+        if (!filesByBase.has(base)) {
+          filesByBase.set(base, []);
+        }
+        filesByBase.get(base)!.push(file);
+      }
+
+      console.log('Grouped files:', Array.from(filesByBase.keys()));
+
+      // Load first map found
+      for (const [basename, baseFiles] of filesByBase) {
+        const jsonFile = baseFiles.find(f => f.name.endsWith('.json'));
+        const imageFile = baseFiles.find(f => /\.(jpg|jpeg|png)$/i.test(f.name));
+
+        if (jsonFile) {
+          console.log('Loading map:', basename, 'with files:', jsonFile.name, imageFile?.name);
+          await loadMapWithFiles(state, jsonFile, imageFile);
+          break;
+        }
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Unknown error during file load';
+      console.error('File load handler error:', err);
+      state.loadError = errorMsg;
+      alert(`Error: ${errorMsg}`);
     }
   };
   input.click();
+}
+
+/**
+ * Load map JSON and optional background image.
+ */
+async function loadMapWithFiles(
+  state: DesignerState,
+  jsonFile: File,
+  imageFile?: File
+): Promise<void> {
+  try {
+    const jsonContent = await jsonFile.text();
+    const result = loadMap(state, jsonContent);
+
+    if (!result.ok) {
+      const errorMsg = (result as { ok: false; error: string }).error;
+      state.loadError = errorMsg;
+      console.error('Map load failed:', errorMsg);
+      alert(`Error loading map: ${errorMsg}`);
+      return;
+    }
+
+    state.loadError = null;
+
+    // Load background image if provided
+    if (imageFile) {
+      const imgUrl = URL.createObjectURL(imageFile);
+      const img = new Image();
+      img.onload = () => {
+        state.backgroundImage = img;
+        console.log('Background image loaded:', imageFile.name);
+      };
+      img.onerror = () => {
+        console.warn('Failed to load background image:', imageFile.name);
+      };
+      img.src = imgUrl;
+    } else {
+      state.backgroundImage = null;
+    }
+
+    console.log('Map loaded successfully from', jsonFile.name);
+    updateInspector();
+  } catch (err: any) {
+    state.loadError = err.message;
+    console.error('Exception loading map:', err);
+    alert(`Error: ${err.message}`);
+  }
 }
 
 /**
@@ -322,9 +399,32 @@ function updateToolUI() {
 }
 
 /**
+ * Update map status display.
+ */
+function updateMapStatus() {
+  const statusEl = document.getElementById('map-status');
+  if (!statusEl || !state.grid) return;
+
+  const info: string[] = [];
+  info.push(`${state.grid.rows}×${state.grid.cols}`);
+
+  if (state.backgroundImage) {
+    info.push('+ background');
+  }
+
+  if (state.mapData?.spawnPoints?.length) {
+    info.push(`${state.mapData.spawnPoints.length} spawns`);
+  }
+
+  statusEl.textContent = info.join(' · ');
+}
+
+/**
  * Update inspector panel with selected cell info.
  */
 function updateInspector() {
+  updateMapStatus();
+
   if (!state.grid || !state.selectedCell) return;
 
   const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
@@ -349,31 +449,30 @@ function updateInspector() {
 }
 
 /**
- * Build minimal asset manifest for preview.
+ * Build asset manifest for tilemap preview.
+ * Paths match src/main.ts asset loading.
  */
 function buildAssetManifest() {
-  const prefix = '/sprites';
   return {
     images: {
       // Ground tiles
-      'ground-01a': `${prefix}/ground/Ground_Tile_01_A.png`,
-      'ground-01b': `${prefix}/ground/Ground_Tile_01_B.png`,
-      'ground-02a': `${prefix}/ground/Ground_Tile_02_A.png`,
-      'ground-winter': `${prefix}/ground/Ground_Tile_Dirty_Road_Winter_1.png`,
-      'ground-water': `${prefix}/ground/Ground_Tile_Water_1.png`,
+      'ground-01a': '/sprites/tiles/Ground_Tile_Dirty_Road_1.png',
+      'ground-01b': '/sprites/tiles/Ground_Tile_Grass_1.png',
+      'ground-02a': '/sprites/tiles/Ground_Tile_Dirty_Road_2.png',
+      'ground-winter': '/sprites/tiles/Ground_Tile_Dirty_Road_Winter_1.png',
+      'ground-water': '/sprites/tiles/Ground_Tile_Water_1.png',
       // Objects
-      'block-a01': `${prefix}/environment/Block_A_01.png`,
-      'block-b01': `${prefix}/environment/Block_B_01.png`,
-      'container-a': `${prefix}/environment/Container_A.png`,
-      'container-b': `${prefix}/environment/Container_B.png`,
-      'container-c': `${prefix}/environment/Container_C.png`,
-      'container-d': `${prefix}/environment/Container_D.png`,
-      'hedgehog-a': `${prefix}/environment/Czech_Hedgehog_A_1.png`,
-      'hedgehog-b': `${prefix}/environment/Czech_Hedgehog_B_1.png`,
-      // Decors (minimal set)
-      'decor-blast-1': `${prefix}/decor/Decor_Destruction_Dirt_1.png`,
-      'decor-puddle-1': `${prefix}/decor/Decor_Puddle_1.png`,
-      'decor-border-a': `${prefix}/decor/Decor_Border_A_1.png`,
+      'block-a01': '/sprites/tiles/Block_A_01.png',
+      'block-b01': '/sprites/tiles/Block_B_01.png',
+      'container-a': '/sprites/tiles/Container_A.png',
+      'container-b': '/sprites/tiles/Container_B.png',
+      'container-c': '/sprites/tiles/Container_C.png',
+      'container-d': '/sprites/tiles/Container_D.png',
+      'hedgehog-a': '/sprites/tiles/Czech_Hdgehog_A.png',
+      'hedgehog-b': '/sprites/tiles/Czech_Hdgehog_B.png',
+      // Decor (minimal set)
+      'decor-border-a': '/sprites/decor/Border_A.png',
+      'decor-puddle-1': '/sprites/decor/Puddle_01.png',
     },
     audio: {},
   };

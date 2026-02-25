@@ -36,9 +36,15 @@ export interface DesignerState {
   // Validation
   validationResult: ValidationResult | null;
 
+  // Background image (optional)
+  backgroundImage: HTMLImageElement | null;
+
   // UI flags
   showGrid: boolean;
   showValidation: boolean;
+
+  // Load state
+  loadError: string | null;
 }
 
 /** Create initial empty state. */
@@ -49,7 +55,7 @@ export function createInitialState(): DesignerState {
     selectedCell: null,
     camera: { x: 0, y: 0, zoom: 1 },
     activeTool: 'select',
-    paintGround: 'grass' as TileId,
+    paintGround: 'grass_plains' as TileId,
     paintObject: 'none' as ObjectId,
     paintRotation: 0,
     paintDecors: [],
@@ -57,7 +63,9 @@ export function createInitialState(): DesignerState {
     historyIndex: -1,
     maxHistory: 50,
     validationResult: null,
+    backgroundImage: null,
     showGrid: true,
     showValidation: true,
+    loadError: null,
   };
 }
