@@ -1,3 +1,5 @@
+import type { ExplosionType } from './CombatConfig.js';
+
 export type BombType = 'proximity' | 'timed' | 'remote';
 
 export interface BombDef {
@@ -8,6 +10,7 @@ export interface BombDef {
   fuseMs?: number;         // ms until auto-detonate (timed only)
   chainRadiusPx?: number;  // px — propagates to other armed bombs in radius (remote only)
   triggerRadiusPx?: number; // px — proximity trigger distance (proximity only)
+  explosionType?: ExplosionType; // bomb/laser/plasma/nuclear; defaults to 'bomb'
 }
 
 export const BOMB_DEFS: Record<BombType, BombDef> = {

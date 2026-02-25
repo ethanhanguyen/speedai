@@ -116,44 +116,64 @@ export const ENGINE_REGISTRY: Readonly<Record<string, EngineDef>> = {
 const TRACK_DISPLAY_W = 9;
 const TRACK_DISPLAY_H = 54;
 
-/** Default terrain costs: 1.0 = normal speed. Values < 1 = penalty. */
+/** Default terrain costs derived from TerrainData.json clearSpeed values. */
 const BASE_TERRAIN: TerrainCosts = {
-  [TileId.GRASS]:  1.0,
-  [TileId.DIRT]:   0.95,
-  [TileId.STONE]:  1.05,
-  [TileId.MUD]:    0.6,
-  [TileId.SAND]:   0.75,
-  [TileId.ICE]:    0.85,
-  [TileId.WATER]:  0.4,
-  [TileId.PUDDLE]: 0.9,
-};
+  [TileId.LOOSE_SAND]:        0.75,
+  [TileId.HARDPAN]:           1.0,
+  [TileId.GRAVEL]:            0.7,
+  [TileId.ROCKY_OUTCROP]:     0.6,
+  [TileId.ASPHALT]:           1.3,
+  [TileId.MUDDY_SINKHOLE]:    0.35,
+  [TileId.DUNE_SLOPE]:        0.5,
+  [TileId.SALT_FLAT]:         1.2,
+  [TileId.SCRUB_VEGETATION]:  0.9,
+  [TileId.OASIS_TURF]:        1.1,
+  [TileId.GRASS_PLAINS]:      1.0,
+  [TileId.HILLY_GROUND]:      0.8,
+  [TileId.FOREST_FLOOR]:      0.85,
+  [TileId.JUNGLE_UNDERBRUSH]: 0.6,
+  [TileId.ICE_SNOW_FIELD]:    0.7,
+  [TileId.DEEP_SNOW]:         0.5,
+  [TileId.URBAN_PAVEMENT]:    1.15,
+  [TileId.MARSH_SWAMP]:       0.3,
+  [TileId.DIRT_ROAD]:         1.4,
+  [TileId.BEACH_SAND]:        0.85,
+  [TileId.HILL_SLOPE]:        0.6,
+  [TileId.CANYON_FLOOR]:      0.85,
+  [TileId.SHORELINE]:         0.75,
+  [TileId.RAPIDS_DROP]:       0.1,
+  [TileId.SADDLE_PASS]:       1.0,
+  [TileId.DEPRESSION]:        0.9,
+  [TileId.VALLEY_FLOOR]:      1.1,
+  [TileId.RIDGE_CREST]:       0.9,
+} as TerrainCosts;
 
 export const TRACK_REGISTRY: Readonly<Record<string, TrackDef>> = {
   'track-1': {
     id: 'track-1', name: 'Narrow Steel',
     spriteKey: 'track-1a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.7, weight: 6,
-    // +10% on stone road, −30% in mud (spec: 5.8)
-    terrainCosts: { ...BASE_TERRAIN, [TileId.STONE]: 1.1, [TileId.MUD]: 0.7 },
+    // +25% on rocky terrain, −30% in mud (spec: 5.8)
+    terrainCosts: { ...BASE_TERRAIN, [TileId.ROCKY_OUTCROP]: 0.75, [TileId.MUDDY_SINKHOLE]: 0.25 },
   },
   'track-2': {
     id: 'track-2', name: 'Wide Rubber',
     spriteKey: 'track-2a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.85, weight: 8,
-    // 1.0 on mud = ignores mud penalty (spec: 5.8); minor sand penalty; reduced water
-    terrainCosts: { ...BASE_TERRAIN, [TileId.MUD]: 1.0, [TileId.SAND]: 0.9, [TileId.WATER]: 0.55 },
+    // Handles mud well; minor sand penalty; reduced swamp penalty
+    terrainCosts: { ...BASE_TERRAIN, [TileId.MUDDY_SINKHOLE]: 0.65, [TileId.LOOSE_SAND]: 0.7, [TileId.MARSH_SWAMP]: 0.45 },
   },
   'track-3': {
     id: 'track-3', name: 'Spiked Treads',
     spriteKey: 'track-3a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.6, weight: 10,
-    terrainCosts: { ...BASE_TERRAIN, [TileId.ICE]: 1.0, [TileId.MUD]: 0.8, [TileId.SAND]: 0.85 },
+    terrainCosts: { ...BASE_TERRAIN, [TileId.ICE_SNOW_FIELD]: 1.0, [TileId.MUDDY_SINKHOLE]: 0.45, [TileId.LOOSE_SAND]: 0.8 },
   },
   'track-4': {
     id: 'track-4', name: 'Hover Pads',
     spriteKey: 'track-4a', width: TRACK_DISPLAY_W, height: TRACK_DISPLAY_H,
     handling: 0.95, weight: 12,
-    terrainCosts: { ...BASE_TERRAIN, [TileId.WATER]: 0.85, [TileId.MUD]: 0.85, [TileId.ICE]: 0.75 },
+    terrainCosts: { ...BASE_TERRAIN, [TileId.MARSH_SWAMP]: 0.55, [TileId.MUDDY_SINKHOLE]: 0.5, [TileId.ICE_SNOW_FIELD]: 0.6 },
   },
 };
 

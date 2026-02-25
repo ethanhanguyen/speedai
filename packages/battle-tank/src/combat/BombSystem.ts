@@ -126,6 +126,7 @@ export class BombSystem {
       splashRadiusPx: def.splashRadiusPx,
       damage: def.damage,
       ownerId: bomb.ownerId,
+      explosionType: def.explosionType ?? 'bomb',
     });
 
     this.eventBus.fire('bomb:exploded', { x: pos.x, y: pos.y, type: bomb.type });

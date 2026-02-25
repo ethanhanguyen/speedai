@@ -1,5 +1,5 @@
 import type { GridModel } from '@speedai/game-engine';
-import type { TileCell, MapData, TileId, ObjectId, DecorId } from '../../src/tilemap/types.js';
+import type { TileCell, MapData, MapMetadata, TileId, ObjectId, DecorId } from '../../src/tilemap/types.js';
 import type { ValidationResult } from '../MapValidator.js';
 
 /** Available editing tools. */
@@ -16,9 +16,11 @@ export interface DesignerState {
   // Map data
   mapData: MapData | null;
   grid: GridModel<TileCell> | null;
+  mapMetadata: MapMetadata | null;
 
   // UI state
   selectedCell: { r: number; c: number } | null;
+  hoveredCell: { r: number; c: number } | null;
   camera: { x: number; y: number; zoom: number };
   activeTool: Tool;
 
@@ -42,6 +44,8 @@ export interface DesignerState {
   // UI flags
   showGrid: boolean;
   showValidation: boolean;
+  showStrategicZones: boolean;
+  showTileSymbols: boolean;
 
   // Load state
   loadError: string | null;
@@ -52,7 +56,9 @@ export function createInitialState(): DesignerState {
   return {
     mapData: null,
     grid: null,
+    mapMetadata: null,
     selectedCell: null,
+    hoveredCell: null,
     camera: { x: 0, y: 0, zoom: 1 },
     activeTool: 'select',
     paintGround: 'grass_plains' as TileId,
@@ -66,6 +72,8 @@ export function createInitialState(): DesignerState {
     backgroundImage: null,
     showGrid: true,
     showValidation: true,
+    showStrategicZones: false,
+    showTileSymbols: false,
     loadError: null,
   };
 }

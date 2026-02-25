@@ -189,6 +189,8 @@
       <button id="btn-undo">Undo</button>
       <button id="btn-redo">Redo</button>
       <div class="divider"></div>
+      <button id="btn-toggle-symbols">Show Symbols</button>
+      <div class="divider"></div>
       <span style="font-size: 11px; color: #666; flex: 1; text-align: right;">
         Battle Tank Map Designer
       </span>
@@ -211,17 +213,15 @@
 
         <div class="panel-section">
           <h3>Palette</h3>
+          <div style="font-size: 9px; color: #666; margin-bottom: 12px; line-height: 1.4;">
+            1. Select Paint tool<br>
+            2. Pick terrain & object<br>
+            3. Click canvas to paint
+          </div>
           <div class="inspector-row">
             <label>Ground</label>
             <select id="palette-ground">
-              <option value="grass">Grass</option>
-              <option value="dirt">Dirt</option>
-              <option value="stone">Stone</option>
-              <option value="mud">Mud</option>
-              <option value="sand">Sand</option>
-              <option value="ice">Ice</option>
-              <option value="water">Water</option>
-              <option value="puddle">Puddle</option>
+              <!-- Populated dynamically from TerrainData.json -->
             </select>
           </div>
 
@@ -229,10 +229,7 @@
             <label>Object</label>
             <select id="palette-object">
               <option value="none">None</option>
-              <option value="block">Block (2x2)</option>
-              <option value="container">Container (1x2)</option>
-              <option value="wall">Wall (1x1)</option>
-              <option value="hedgehog">Hedgehog (1x1)</option>
+              <!-- Populated dynamically from ObjectData.json -->
             </select>
           </div>
 
@@ -268,6 +265,23 @@
       <!-- Right panel: Inspector -->
       <div id="right-panel">
         <div class="panel-section">
+          <h3>Map Info</h3>
+          <div class="inspector-row" style="font-size: 10px; color: #888;">
+            <div id="map-status">No map loaded</div>
+          </div>
+          <div class="inspector-row">
+            <button id="btn-toggle-zones" style="width: 100%; margin-top: 8px;">Show Zones</button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Map Details</h3>
+          <div id="map-details" style="font-size: 9px; color: #aaa; line-height: 1.5;">
+            <div style="color: #888;">• Load a map to see details</div>
+          </div>
+        </div>
+
+        <div class="panel-section">
           <h3>Inspector</h3>
           <div class="inspector-row">
             <label>Position</label>
@@ -277,14 +291,7 @@
           <div class="inspector-row">
             <label>Ground</label>
             <select id="inspector-ground">
-              <option value="grass">Grass</option>
-              <option value="dirt">Dirt</option>
-              <option value="stone">Stone</option>
-              <option value="mud">Mud</option>
-              <option value="sand">Sand</option>
-              <option value="ice">Ice</option>
-              <option value="water">Water</option>
-              <option value="puddle">Puddle</option>
+              <!-- Populated dynamically from TerrainData.json -->
             </select>
           </div>
 
@@ -292,11 +299,63 @@
             <label>Object</label>
             <select id="inspector-object">
               <option value="none">None</option>
-              <option value="block">Block</option>
-              <option value="container">Container</option>
-              <option value="wall">Wall</option>
-              <option value="hedgehog">Hedgehog</option>
+              <!-- Populated dynamically from ObjectData.json -->
             </select>
+          </div>
+
+          <div class="inspector-row">
+            <label>Rotation</label>
+            <select id="inspector-rotation">
+              <option value="0">0°</option>
+              <option value="90">90°</option>
+              <option value="180">180°</option>
+              <option value="270">270°</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="object-properties-panel" class="panel-section" style="display: none;">
+          <h3>Object Properties</h3>
+
+          <div class="inspector-row" style="font-size: 10px;">
+            <label>Category</label>
+            <div id="prop-category" style="color: #888;">-</div>
+          </div>
+
+          <div class="inspector-row" style="font-size: 10px;">
+            <label>Strategic Role</label>
+            <div id="prop-role" style="color: #888;">-</div>
+          </div>
+
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">
+            <div class="inspector-row">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="prop-isImpassable" style="width: auto;">
+                <span>Impassable</span>
+              </label>
+            </div>
+            <div class="inspector-row">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="prop-isDestructible" style="width: auto;">
+                <span>Destructible</span>
+              </label>
+            </div>
+            <div class="inspector-row">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="prop-isVisualOverlay" style="width: auto;">
+                <span>Visual Overlay</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="inspector-row">
+            <label>Clear Speed</label>
+            <input type="number" id="prop-clearSpeed" step="0.1" min="0">
+          </div>
+
+          <div class="inspector-row">
+            <label>Strategic Role (Override)</label>
+            <input type="text" id="prop-strategicRole" placeholder="e.g., Map dividers">
           </div>
         </div>
 

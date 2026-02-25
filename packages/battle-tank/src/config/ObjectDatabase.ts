@@ -18,6 +18,20 @@ export interface ObjectDef {
   coverPercent: number;        // % damage reduction (0–1.0)
   sightBlockRange: number;     // cells of vision blocked (0–3)
   isImpassable: boolean;       // Movement blocking flag
+  isDestructible?: boolean;    // Can be destroyed (gameplay mechanic)
+  spriteAvailable?: boolean;   // Sprite rendering available
+  spriteDir?: string;          // Sprite directory (e.g., "obstacles")
+  spriteFile?: string;         // Base sprite filename (without state/environment)
+  damageStates?: string[];     // Available damage states (e.g., ["perfect", "half", "destroyed"])
+  environmentVariants?: string[]; // Available environment variants (e.g., ["night", "winter"])
+  isVisualOverlay?: boolean;   // Decoration overlay (not for terrain structure generation)
+  // Gameplay fields (optional, defaults applied by buildObjectDefsMap)
+  hp?: number;                          // Default: Infinity if isImpassable, 1 if isDestructible, 0 otherwise
+  blockProjectile?: boolean;            // Default: isImpassable || coverPercent >= 0.5
+  gridSpan?: { w: number; h: number };  // Default: { w: 1, h: 1 }
+  orientations?: number[];              // Default: [0]
+  displaySize?: { w: number; h: number }; // Default: gridSpan * tileSize (computed at runtime)
+  pivot?: { x: number; y: number };     // Default: { x: 0.5, y: 0.5 }
 }
 
 /**
@@ -128,6 +142,95 @@ export function getCategoryStats(): Record<ObjectCategory, number> {
 }
 
 /**
+ * Get all structural objects (for terrain generation; excludes visual overlays).
+ */
+export function getStructuralObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.isVisualOverlay !== true);
+}
+
+/**
+ * Get all visual overlay objects (decorations; passable, placed post-generation).
+ */
+export function getVisualOverlayObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.isVisualOverlay === true);
+}
+
+/**
+ * Get all objects with sprite rendering available.
+ */
+export function getSpriteObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.spriteAvailable === true);
+}
+
+/**
+ * Get all objects without sprite rendering (prerendered).
+ */
+export function getPrerenderedObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.spriteAvailable !== true);
+}
+
+/**
+ * Get all destructible objects.
+ */
+export function getDestructibleObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.isDestructible === true);
+}
+
+/**
+ * Get all indestructible objects.
+ */
+export function getIndestructibleObjects(): ObjectDef[] {
+  return OBJECT_DATA.filter((o) => o.isDestructible !== true);
+}
+
+/**
+ * Get sprite path for object with environment/damage state.
+ * Returns path like: /sprites/obstacles/concrete_bunker_perfect.png
+ * Handles fallback: night_winter_state → night_state → winter_state → state
+ */
+export function getSpritePath(
+  obj: ObjectDef,
+  state?: string,
+  environment?: string,
+  season?: string
+): string | null {
+  if (!obj.spriteAvailable || !obj.spriteDir || !obj.spriteFile) {
+    return null;
+  }
+
+  const variants: string[] = [];
+
+  if (state) {
+    // Try all combinations with environment/season
+    if (environment && season) {
+      variants.push(`${obj.spriteFile}_${environment}_${season}_${state}`);
+    }
+    if (environment) {
+      variants.push(`${obj.spriteFile}_${environment}_${state}`);
+    }
+    if (season) {
+      variants.push(`${obj.spriteFile}_${season}_${state}`);
+    }
+    variants.push(`${obj.spriteFile}_${state}`);
+  } else {
+    // No state (static objects like wreckage)
+    if (environment && season) {
+      variants.push(`${obj.spriteFile}_${environment}_${season}`);
+    }
+    if (environment) {
+      variants.push(`${obj.spriteFile}_${environment}`);
+    }
+    if (season) {
+      variants.push(`${obj.spriteFile}_${season}`);
+    }
+    variants.push(obj.spriteFile);
+  }
+
+  // Return first variant (caller will check existence)
+  return `/sprites/${obj.spriteDir}/${variants[0]}.png`;
+}
+
+/**
  * Backward-compatible OBJECT_PROPERTIES export (for legacy code).
  * Maps object name → gameplay mechanics (without strategic/historical data).
  */
@@ -140,4 +243,85 @@ for (const obj of OBJECT_DATA) {
     roleCategory: obj.category,
     isImpassable: obj.isImpassable,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Data-driven builders for TileRegistry OBJECT_DEFS
+// ---------------------------------------------------------------------------
+
+/**
+ * Build spriteVariants array from damageStates or environmentVariants.
+ * e.g., barrel + ["blue","red","yellow"] → ["barrel_blue","barrel_red","barrel_yellow"]
+ * e.g., concrete_bunker + ["perfect","half","destroyed"] → ["concrete_bunker_perfect",...]
+ */
+export function buildSpriteVariants(obj: ObjectDef): string[] | undefined {
+  if (!obj.spriteAvailable || !obj.spriteFile) return undefined;
+
+  if (obj.environmentVariants && obj.environmentVariants.length > 0) {
+    return obj.environmentVariants.map(v => `${obj.spriteFile}_${v}`);
+  }
+  if (obj.damageStates && obj.damageStates.length > 0) {
+    return obj.damageStates.map(s => `${obj.spriteFile}_${s}`);
+  }
+  return undefined;
+}
+
+/**
+ * TileRegistry-compatible object definition (rendering + gameplay).
+ * Generated from ObjectData.json by buildObjectDefsMap().
+ */
+export interface TileObjectDef {
+  spriteKey: string;
+  spriteVariants?: string[];
+  walkable: boolean;
+  destructible: boolean;
+  hp: number;
+  blockProjectile: boolean;
+  gridSpan?: { w: number; h: number };
+  orientations?: number[];
+  displaySize?: { w: number; h: number };
+  pivot?: { x: number; y: number };
+}
+
+/**
+ * Build the OBJECT_DEFS map from ObjectData.json.
+ * Returns Record<objectName, TileObjectDef> including an entry for 'none'.
+ * This is the single source of truth — TileRegistry imports this directly.
+ */
+export function buildObjectDefsMap(): Record<string, TileObjectDef> {
+  const map: Record<string, TileObjectDef> = {
+    none: {
+      spriteKey: '',
+      walkable: true,
+      destructible: false,
+      hp: 0,
+      blockProjectile: false,
+    },
+  };
+
+  for (const obj of OBJECT_DATA) {
+    const variants = buildSpriteVariants(obj);
+    const isDestructible = obj.isDestructible ?? false;
+
+    // spriteKey: first variant if variants exist, else object name if sprite available, else '' (skip rendering)
+    let spriteKey = '';
+    if (obj.spriteAvailable && obj.spriteFile) {
+      spriteKey = variants ? variants[0] : obj.name;
+    }
+
+    map[obj.name] = {
+      spriteKey,
+      spriteVariants: variants,
+      walkable: !obj.isImpassable,
+      destructible: isDestructible,
+      hp: obj.hp ?? (obj.isImpassable ? Infinity : (isDestructible ? 1 : 0)),
+      blockProjectile: obj.blockProjectile ?? (obj.isImpassable || obj.coverPercent >= 0.5),
+      gridSpan: obj.gridSpan,
+      orientations: obj.orientations,
+      displaySize: obj.displaySize,
+      pivot: obj.pivot,
+    };
+  }
+
+  return map;
 }

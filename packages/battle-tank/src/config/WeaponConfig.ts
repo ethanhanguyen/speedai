@@ -1,7 +1,8 @@
 import type { DamageType } from './ArmorConfig.js';
+import type { ExplosionType } from './CombatConfig.js';
 import type { ParticleBurstConfig } from '@speedai/game-engine';
 
-export type { DamageType };
+export type { DamageType, ExplosionType };
 
 // ---------------------------------------------------------------------------
 // Behavior union — one per fire mode
@@ -108,6 +109,8 @@ export interface WeaponDef {
   shakeOnHit: ShakeDef;
   behavior: WeaponBehavior;
   damageType: DamageType;
+  /** Explosion effect type (bomb/laser/plasma/nuclear). Auto-inferred from damageType if omitted. */
+  explosionType?: ExplosionType;
   /** Which unit class may equip this weapon: 'tank' | 'infantry' | 'any'. */
   unitClass: UnitClass;
   /** Barrel kick in px along the barrel axis on fire; springs back via recoilSpring. */

@@ -18,6 +18,7 @@ export interface TerrainDef {
   sightBlockRange: number; // cells of vision obscured (0–3)
   dotPerTurn: number;      // HP loss per turn (0–2)
   strategicRole: string;   // Map design purpose (e.g., "Open chases, ambushes")
+  
   historicalContext: string; // Real battle reference for flavor
   playstyleHints: string;  // Player guidance for LLM (e.g., "Poor traction, exposed")
 }

@@ -15,6 +15,7 @@ import { MenuScene } from './scenes/MenuScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { GarageScene } from './scenes/GarageScene.js';
 import { MapSelectScene } from './scenes/MapSelectScene.js';
+import { getAllObjects, buildSpriteVariants } from './config/ObjectDatabase.js';
 
 async function main() {
   const canvas = document.querySelector('#game') as HTMLCanvasElement;
@@ -64,56 +65,16 @@ async function main() {
     assets.loadImage('gun-06', '/sprites/weapons/Gun_06.png'),
     assets.loadImage('gun-07', '/sprites/weapons/Gun_07.png'),
     assets.loadImage('gun-08', '/sprites/weapons/Gun_08.png'),
-    // Ground tiles (placeholder — kept for tile layer rendering)
-    assets.loadImage('ground-01a', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('ground-01b', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('ground-02a', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('ground-winter', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('ground-water', '/sprites/obstacles/tank_hull_wreckage.png'),
-    // Obstacles
-    assets.loadImage('concrete_bunker_perfect', '/sprites/obstacles/concrete_bunker_perfect.png'),
-    assets.loadImage('concrete_bunker_half', '/sprites/obstacles/concrete_bunker_half.png'),
-    assets.loadImage('concrete_bunker_destroyed', '/sprites/obstacles/concrete_bunker_destroyed.png'),
-    assets.loadImage('container_bunker_perfect', '/sprites/obstacles/container_bunker_perfect.png'),
-    assets.loadImage('container_bunker_half', '/sprites/obstacles/container_bunker_half.png'),
-    assets.loadImage('container_bunker_destroyed', '/sprites/obstacles/container_bunker_destroyed.png'),
-    assets.loadImage('sandbag_bunker_perfect', '/sprites/obstacles/sandbag_bunker_perfect.png'),
-    assets.loadImage('sandbag_bunker_half', '/sprites/obstacles/sandbag_bunker_half.png'),
-    assets.loadImage('sandbag_bunker_destroyed', '/sprites/obstacles/sandbag_bunker_destroyed.png'),
-    assets.loadImage('tank_hull_wreckage', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('helicopter_wreckage', '/sprites/obstacles/helicopter_wreckage.png'),
-    assets.loadImage('ammo_crate_base', '/sprites/obstacles/ammo_crate_base.png'),
-    assets.loadImage('ammo_crate_legend', '/sprites/obstacles/ammo_crate_legend.png'),
-    assets.loadImage('ammo_crate_premium', '/sprites/obstacles/ammo_crate_premium.png'),
-    assets.loadImage('barrel_blue', '/sprites/obstacles/barrel_blue.png'),
-    assets.loadImage('barrel_red', '/sprites/obstacles/barrel_red.png'),
-    assets.loadImage('barrel_yellow', '/sprites/obstacles/barrel_yellow.png'),
-    assets.loadImage('dynamite_box', '/sprites/obstacles/dynamite_box.png'),
-    // Legacy object keys (mapped to obstacles for compatibility)
-    assets.loadImage('block-a01', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('block-b01', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('container-a', '/sprites/obstacles/container_bunker_perfect.png'),
-    assets.loadImage('container-b', '/sprites/obstacles/container_bunker_perfect.png'),
-    assets.loadImage('container-c', '/sprites/obstacles/container_bunker_perfect.png'),
-    assets.loadImage('container-d', '/sprites/obstacles/container_bunker_perfect.png'),
-    assets.loadImage('hedgehog-a',  '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('hedgehog-b',  '/sprites/obstacles/tank_hull_wreckage.png'),
-    // Legacy decor keys (no longer used — kept for safety)
-    assets.loadImage('decor-blast-1', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-blast-2', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-blast-3', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-blast-4', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-blast-5', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-blast-6', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-border-a', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-border-b', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-border-c', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-1', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-2', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-3', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-4', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-5', '/sprites/obstacles/tank_hull_wreckage.png'),
-    assets.loadImage('decor-puddle-6', '/sprites/obstacles/tank_hull_wreckage.png'),
+    // Obstacles — data-driven from ObjectData.json
+    ...getAllObjects()
+      .filter(obj => obj.spriteAvailable && obj.spriteFile && obj.spriteDir)
+      .flatMap(obj => {
+        const variants = buildSpriteVariants(obj);
+        if (variants) {
+          return variants.map(v => assets.loadImage(v, `/sprites/${obj.spriteDir}/${v}.png`));
+        }
+        return [assets.loadImage(obj.name, `/sprites/${obj.spriteDir}/${obj.spriteFile}.png`)];
+      }),
     // Projectile shells (7 types)
     assets.loadImage('medium-shell',   '/sprites/effects/Medium_Shell.png'),
     assets.loadImage('light-shell',    '/sprites/effects/Light_Shell.png'),

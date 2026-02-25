@@ -11,7 +11,6 @@ export enum TileId {
   SALT_FLAT = 'salt_flat',
   SCRUB_VEGETATION = 'scrub_vegetation',
   OASIS_TURF = 'oasis_turf',
-  WATER = 'water',
   // New terrains
   GRASS_PLAINS = 'grass_plains',
   HILLY_GROUND = 'hilly_ground',
@@ -56,11 +55,18 @@ export enum ObjectId {
   ANTI_TANK_DITCH = 'anti_tank_ditch',
   SHIPPING_CONTAINER = 'shipping_container',
   RUINED_STRUCTURE = 'ruined_structure',
+  CONCRETE_BUNKER = 'concrete_bunker',
+  CONTAINER_BUNKER = 'container_bunker',
+  SANDBAG_BUNKER = 'sandbag_bunker',
   // Industrial & hazards
   OIL_DERRICK = 'oil_derrick',
   QUARRY_PIT_WALL = 'quarry_pit_wall',
   FROZEN_LAKE_EDGE = 'frozen_lake_edge',
   TANK_HULL_WRECKAGE = 'tank_hull_wreckage',
+  HELICOPTER_WRECKAGE = 'helicopter_wreckage',
+  AMMO_CRATE = 'ammo_crate',
+  BARREL = 'barrel',
+  DYNAMITE_BOX = 'dynamite_box',
 }
 
 /**
@@ -99,6 +105,14 @@ export interface TileCell {
   multiTileAnchor?: { r: number; c: number };
   /** Rotation in degrees (0, 90, 180, 270). Only set on anchor cells. */
   objectRotation?: number;
+  /** Per-tile property overrides (editor only). */
+  objectProperties?: {
+    isImpassable?: boolean;
+    isDestructible?: boolean;
+    isVisualOverlay?: boolean;
+    clearSpeed?: number;
+    strategicRole?: string;
+  };
 }
 
 /** Strategic role identifiers for tactical map features. */
@@ -124,4 +138,28 @@ export interface MapData {
   sniperLanes?: Array<{ r1: number; c1: number; r2: number; c2: number }>;
   coverClusters?: Array<{ r: number; c: number; value: number }>;
   hazardZones?: Array<{ r: number; c: number; severity: number }>;
+}
+
+/** Map details metadata: terrain/object stats, strategic analysis, background image. */
+export interface MapMetadata {
+  // Terrain coverage breakdown
+  terrainCoverage: Record<string, { count: number; percentage: number }>;
+
+  // Object distribution by category
+  objectsByCategory: Record<string, number>;
+  totalObjects: number;
+
+  // Strategic zones (from analysis or LLM hints)
+  strategicZones: {
+    chokePoints?: Array<{ r: number; c: number }>;
+    sniperLanes?: Array<{ r: number; c: number }>;
+    ambushZones?: Array<{ r: number; c: number }>;
+    hazardZones?: Array<{ r: number; c: number }>;
+  };
+
+  // Background image path (relative or absolute URL)
+  backgroundImage?: string;
+
+  // LLM generation hints (terrain types, density descriptors)
+  hints: string[];
 }

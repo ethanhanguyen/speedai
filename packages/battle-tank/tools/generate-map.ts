@@ -650,20 +650,42 @@ function enrichMetadata(
   };
 }
 
+function buildSymbolLegendForImagePrompt(): string {
+  const terrainSymbols: string[] = [];
+  const objectSymbols: string[] = [];
+
+  for (const [char, cell] of Object.entries(CHAR_MAP)) {
+    if (['1', '2'].includes(char)) continue; // Skip spawn markers
+
+    if (cell.object === 'none') {
+      terrainSymbols.push(`${char} = ${cell.ground}`);
+    } else {
+      objectSymbols.push(`${char} = ${cell.object}`);
+    }
+  }
+
+  const legend = [...terrainSymbols, ...objectSymbols].join(', ');
+  return `Terrain & Objects: ${legend}\nSpawn Markers: 1 = player spawn, 2 = enemy spawn`;
+}
+
 function generateImagePrompt(generatedMap: GeneratedMap, metadata: EnrichedMetadata): string {
   const terrainDesc = buildTerrainDescription(metadata);
   const objectDesc = buildObjectDescription(generatedMap);
+  const symbolLegend = buildSymbolLegendForImagePrompt();
 
   // Optional: You can enrich these helpers further if needed (e.g., add density qualifiers)
-  const themeStyle = metadata.theme.toLowerCase().includes('desert') 
+  const themeStyle = metadata.theme.toLowerCase().includes('desert')
     ? 'arid desert wasteland, sun-bleached sand dunes, cracked earth, sparse dry scrub'
-    : metadata.theme.toLowerCase().includes('urban') 
+    : metadata.theme.toLowerCase().includes('urban')
       ? 'ruined post-apocalyptic city, concrete debris, shattered asphalt, rusted rebar'
       : metadata.theme.toLowerCase().includes('forest') || metadata.theme.toLowerCase().includes('jungle')
         ? 'dense tropical/jungle overgrowth, muddy underbrush, tangled vines, moss-covered rocks'
         : 'mixed tactical battlefield environment matching theme';
 
   return `Ultra-detailed photo-realistic top-down aerial satellite reconnaissance view of a modern tank battlefield map, strict exact spatial layout matching the provided mockup grid (${metadata.mapSize.rows}×${metadata.mapSize.cols} cells), perfect orthographic projection, zero perspective distortion, no visible grid lines or overlays whatsoever --ar ${metadata.mapSize.cols}:${metadata.mapSize.rows} --stylize 250 --q 2
+
+SYMBOL LEGEND (for mockup grid interpretation):
+${symbolLegend}
 
 EXACT SPATIAL LAYOUT ONLY — FOLLOW MOCKUP POSITIONS, SHAPES, AND RELATIONSHIPS PRECISELY, BUT RENDER AS SEAMLESS NATURAL TERRAIN WITH NO VISIBLE GRID, NO CHECKERBOARD, NO SQUARES, NO LINES, NO OVERLAY:
 ${generatedMap.mockup}

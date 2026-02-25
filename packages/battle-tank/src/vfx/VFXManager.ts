@@ -1,7 +1,8 @@
 import type { AssetManager, CameraSystem, EventBus, EntityManager } from '@speedai/game-engine';
 import { ParticleBurst, FrameAnimator } from '@speedai/game-engine';
 import type { WeaponDef } from '../config/WeaponConfig.js';
-import { COMBAT_CONFIG } from '../config/CombatConfig.js';
+import { COMBAT_CONFIG, EXPLOSION_DEFS } from '../config/CombatConfig.js';
+import type { ExplosionType } from '../config/CombatConfig.js';
 import { TIMED_BUFF_DEFS, BUFF_HUD, BUFF_NOTIFY } from '../config/BuffConfig.js';
 import { TANK_PARTS } from '../tank/TankParts.js';
 import type { TankPartsComponent } from '../tank/TankParts.js';
@@ -103,7 +104,7 @@ export class VFXManager {
       const e = event as { data?: { x: number; y: number } };
       const d = e.data ?? (e as any);
       if (!d) return;
-      this.spawnExplosion(d.x, d.y);
+      this.spawnExplosion(d.x, d.y, 'plasma');
       this.particles.emit({
         ...COMBAT_CONFIG.destructionParticles,
         x: d.x,
@@ -117,7 +118,7 @@ export class VFXManager {
       const e = event as { data?: { x: number; y: number; tags: string[] } };
       const d = (e.data ?? e) as { x: number; y: number; tags: string[] };
       if (!d?.tags?.includes('enemy')) return;
-      this.spawnExplosion(d.x, d.y);
+      this.spawnExplosion(d.x, d.y, 'nuclear');
       this.spawnTurretPopOff(d.x, d.y);
       this.particles.emit({
         ...COMBAT_CONFIG.destructionParticles,
@@ -209,19 +210,20 @@ export class VFXManager {
     });
 
     eventBus.on('splash:detonated', (event: unknown) => {
-      const e = event as { data?: { x: number; y: number } };
-      const d = (e.data ?? e) as { x: number; y: number };
+      const e = event as { data?: { x: number; y: number; weaponDef?: WeaponDef; explosionType?: ExplosionType } };
+      const d = (e.data ?? e) as { x: number; y: number; weaponDef?: WeaponDef; explosionType?: ExplosionType };
       if (!d) return;
-      this.spawnExplosion(d.x, d.y);
+      const expType = d.explosionType ?? this.resolveExplosionType(d.weaponDef);
+      this.spawnExplosion(d.x, d.y, expType);
       this.particles.emit({ ...COMBAT_CONFIG.splashParticles, x: d.x, y: d.y });
       this.camera.shake(5, 0.25);
     });
 
     eventBus.on('bomb:exploded', (event: unknown) => {
-      const e = event as { data?: { x: number; y: number } };
-      const d = (e.data ?? e) as { x: number; y: number };
+      const e = event as { data?: { x: number; y: number; type?: string } };
+      const d = (e.data ?? e) as { x: number; y: number; type?: string };
       if (!d) return;
-      this.spawnExplosion(d.x, d.y);
+      this.spawnExplosion(d.x, d.y, 'bomb');
       this.particles.emit({ ...COMBAT_CONFIG.splashParticles, x: d.x, y: d.y });
       this.camera.shake(4, 0.2);
     });
@@ -270,15 +272,29 @@ export class VFXManager {
     });
   }
 
-  private spawnExplosion(x: number, y: number): void {
+  private spawnExplosion(x: number, y: number, explosionType?: ExplosionType): void {
+    const type = explosionType ?? 'bomb';
+    const cfg = EXPLOSION_DEFS[type];
     this.explosions.push({
       x, y, angle: 0,
       elapsed: 0,
-      spriteKeys: COMBAT_CONFIG.explosion.spriteKeys,
-      fps: COMBAT_CONFIG.explosion.fps,
-      width: COMBAT_CONFIG.explosion.displaySize,
-      height: COMBAT_CONFIG.explosion.displaySize,
+      spriteKeys: cfg.spriteKeys,
+      fps: cfg.fps,
+      width: cfg.displaySize,
+      height: cfg.displaySize,
     });
+  }
+
+  /** Resolve explosion type from weapon damage type (fallback for events without explicit type). */
+  private resolveExplosionType(weaponDef?: WeaponDef): ExplosionType {
+    if (!weaponDef) return 'plasma';
+    if (weaponDef.explosionType) return weaponDef.explosionType;
+    switch (weaponDef.damageType) {
+      case 'explosive': return 'nuclear';
+      case 'energy': return 'laser';
+      case 'kinetic': return 'bomb';
+      default: return 'plasma';
+    }
   }
 
   private spawnTurretPopOff(x: number, y: number): void {

@@ -6,6 +6,7 @@ import { OBJECT_DEFS, CHAR_MAP } from '../../src/tilemap/TileRegistry.js';
 import { MAP_CONFIG } from '../../src/config/MapConfig.js';
 import { validateGrid } from '../MapValidator.js';
 import { resolveAnchor, getOccupiedCells } from '../../src/tilemap/MultiTileUtils.js';
+import { analyzeMapDetails } from '../../src/tilemap/MapDetailsAnalyzer.js';
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -49,7 +50,7 @@ export function loadMap(state: DesignerState, jsonContent: string): Result<void>
  * Load native designer format (with pre-built grid 2D array).
  */
 function loadNativeFormat(state: DesignerState, data: any): Result<void> {
-  const { rows, cols, grid: gridData, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones } = data;
+  const { rows, cols, grid: gridData, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones, backgroundImage } = data;
 
   const grid = new GridModel<TileCell>(rows, cols, MAP_CONFIG.tileSize, 0);
   for (let r = 0; r < rows; r++) {
@@ -69,6 +70,7 @@ function loadNativeFormat(state: DesignerState, data: any): Result<void> {
     coverClusters,
     hazardZones,
   };
+  state.mapMetadata = analyzeMapDetails(grid, backgroundImage);
   state.history = [];
   state.historyIndex = -1;
   state.validationResult = validateGrid(grid, state.mapData);
@@ -83,7 +85,7 @@ function loadNativeFormat(state: DesignerState, data: any): Result<void> {
  * Converts to internal grid representation.
  */
 function loadGenerateMapFormat(state: DesignerState, data: any): Result<void> {
-  const { rows, cols, obstacles, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones } = data;
+  const { rows, cols, obstacles, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones, backgroundImage } = data;
 
   if (!rows || !cols) {
     return { ok: false, error: 'Missing rows or cols in map data' };
@@ -135,6 +137,7 @@ function loadGenerateMapFormat(state: DesignerState, data: any): Result<void> {
   };
 
   state.grid = grid;
+  state.mapMetadata = analyzeMapDetails(grid, backgroundImage);
   state.history = [];
   state.historyIndex = -1;
   state.validationResult = validateGrid(grid, state.mapData);
@@ -410,6 +413,53 @@ export function toggleDecor(state: DesignerState, r: number, c: number, decorId:
 }
 
 /**
+ * Rotate object at selected cell (cycle 0→90→180→270→0).
+ */
+export function rotateObject(state: DesignerState, r: number, c: number): void {
+  if (!state.grid) return;
+
+  const cell = state.grid.get(r, c);
+  if (!cell || cell.object === ObjectId.NONE) return;
+
+  pushHistory(state);
+  const currentRotation = cell.objectRotation ?? 0;
+  const newRotation = (currentRotation + 90) % 360;
+  cell.objectRotation = newRotation;
+  state.grid.set(r, c, cell);
+
+  if (state.mapData) {
+    state.validationResult = validateGrid(state.grid, state.mapData);
+  }
+}
+
+/**
+ * Update a single object property override.
+ */
+export function updateObjectProperty(
+  state: DesignerState,
+  r: number,
+  c: number,
+  propName: string,
+  value: any
+): void {
+  if (!state.grid) return;
+
+  const cell = state.grid.get(r, c);
+  if (!cell || cell.object === ObjectId.NONE) return;
+
+  pushHistory(state);
+  if (!cell.objectProperties) {
+    cell.objectProperties = {};
+  }
+  (cell.objectProperties as any)[propName] = value;
+  state.grid.set(r, c, cell);
+
+  if (state.mapData) {
+    state.validationResult = validateGrid(state.grid, state.mapData);
+  }
+}
+
+/**
  * Clear tile (reset to grass_plains, no object, no decors).
  */
 export function clearTile(state: DesignerState, r: number, c: number): void {
@@ -421,6 +471,7 @@ export function clearTile(state: DesignerState, r: number, c: number): void {
   if (cell) {
     cell.ground = TileId.GRASS_PLAINS;
     cell.decors = [];
+    delete cell.objectProperties;
     state.grid.set(r, c, cell);
   }
 
@@ -435,7 +486,11 @@ export function clearTile(state: DesignerState, r: number, c: number): void {
 function cloneGrid(grid: GridModel<TileCell>): GridModel<TileCell> {
   const clone = new GridModel<TileCell>(grid.rows, grid.cols, grid.cellSize, grid.cellGap);
   grid.forEach((cell, r, c) => {
-    clone.set(r, c, { ...cell, decors: cell.decors ? [...cell.decors] : undefined });
+    clone.set(r, c, {
+      ...cell,
+      decors: cell.decors ? [...cell.decors] : undefined,
+      objectProperties: cell.objectProperties ? { ...cell.objectProperties } : undefined,
+    });
   });
   return clone;
 }

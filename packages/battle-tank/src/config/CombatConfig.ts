@@ -2,22 +2,59 @@ import type { ParticleBurstConfig } from '@speedai/game-engine';
 import type { DamageType } from './ArmorConfig.js';
 import type { ShakeDef } from './WeaponConfig.js';
 
+export type ExplosionType = 'bomb' | 'laser' | 'plasma' | 'nuclear';
+
+export interface ExplosionDef {
+  spriteKeys: string[];
+  fps: number;
+  displaySize: number;
+}
+
+export const EXPLOSION_DEFS: Record<ExplosionType, ExplosionDef> = {
+  bomb: {
+    spriteKeys: [
+      'explosion-bomb-0', 'explosion-bomb-1', 'explosion-bomb-2', 'explosion-bomb-3',
+      'explosion-bomb-4', 'explosion-bomb-5', 'explosion-bomb-6', 'explosion-bomb-7',
+      'explosion-bomb-8', 'explosion-bomb-9',
+    ],
+    fps: 20,
+    displaySize: 64,
+  },
+  laser: {
+    spriteKeys: [
+      'explosion-laser-0', 'explosion-laser-1', 'explosion-laser-2', 'explosion-laser-3',
+      'explosion-laser-4', 'explosion-laser-5', 'explosion-laser-6', 'explosion-laser-7',
+      'explosion-laser-8', 'explosion-laser-9', 'explosion-laser-10',
+    ],
+    fps: 22,
+    displaySize: 56,
+  },
+  plasma: {
+    spriteKeys: [
+      'explosion-plasma-0', 'explosion-plasma-1', 'explosion-plasma-2', 'explosion-plasma-3',
+      'explosion-plasma-4', 'explosion-plasma-5', 'explosion-plasma-6', 'explosion-plasma-7',
+      'explosion-plasma-8', 'explosion-plasma-9',
+    ],
+    fps: 20,
+    displaySize: 60,
+  },
+  nuclear: {
+    spriteKeys: [
+      'explosion-nuclear-0', 'explosion-nuclear-1', 'explosion-nuclear-2', 'explosion-nuclear-3',
+      'explosion-nuclear-4', 'explosion-nuclear-5', 'explosion-nuclear-6', 'explosion-nuclear-7',
+      'explosion-nuclear-8', 'explosion-nuclear-9', 'explosion-nuclear-10',
+    ],
+    fps: 18,
+    displaySize: 80,
+  },
+};
+
 export const COMBAT_CONFIG = {
   projectilePoolSize: 40,
 
   playerHP: 100,
 
-  explosion: {
-    spriteKeys: [
-      'explosion-0', 'explosion-1', 'explosion-2',
-      'explosion-3', 'explosion-4', 'explosion-5',
-      'explosion-6', 'explosion-7', 'explosion-8',
-    ],
-    fps: 20,
-    displaySize: 64, // px
-    splashRadius: 48, // px — damages nearby entities
-    splashDamage: 10,
-  },
+  explosion: EXPLOSION_DEFS.bomb, // backward compat default
 
   impact: {
     spriteKeys: [

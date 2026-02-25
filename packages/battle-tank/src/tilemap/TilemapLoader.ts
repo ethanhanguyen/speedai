@@ -7,7 +7,7 @@ import { getOccupiedCells } from './MultiTileUtils.js';
 
 const SPAWN_CHAR = 'P';
 const ENEMY_SPAWN_CHAR = 'S';
-const DEFAULT_CELL: TileCell = { ground: TileId.GRASS, object: ObjectId.NONE };
+const DEFAULT_CELL: TileCell = { ground: TileId.LOOSE_SAND, object: ObjectId.NONE };
 
 /**
  * Parse an ASCII map string into a GridModel<TileCell> + metadata.

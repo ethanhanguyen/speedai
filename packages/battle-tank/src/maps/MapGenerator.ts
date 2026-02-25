@@ -333,7 +333,7 @@ export function generateMap(cfg: MapGenConfig, seedOverride?: number): string {
  *
  * Pass 1 — Border: perimeter cells with no object → random border decor.
  * Pass 2 — Scatter: interior open cells → ground-type context decor + near-wall pipes.
- * Pass 3 — Hedgehog: interior open non-water cells → ObjectId.HEDGEHOG obstacle.
+ * Pass 3 — Wreckage: interior open non-hazard cells → ObjectId.TANK_HULL_WRECKAGE obstacle.
  */
 export function applyDecorPasses(
   grid: GridModel<TileCell>,
@@ -435,15 +435,15 @@ export function applyDecorPasses(
   }
 
   // --- Pass 3: Hedgehog placement ---
-  const waterTiles = new Set([TileId.WATER]);
+  const hazardTiles = new Set([TileId.MARSH_SWAMP, TileId.RAPIDS_DROP]);
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
       const cell = grid.get(r, c);
       if (!cell || cell.object !== ObjectId.NONE) continue;
-      if (waterTiles.has(cell.ground)) continue;
+      if (hazardTiles.has(cell.ground)) continue;
       if (tileDistFromSpawn(r, c) < config.hedgehog.minDistFromSpawn) continue;
       if (rng() < config.hedgehog.probability) {
-        grid.set(r, c, { ...cell, object: ObjectId.HEDGEHOG });
+        grid.set(r, c, { ...cell, object: ObjectId.TANK_HULL_WRECKAGE });
       }
     }
   }
