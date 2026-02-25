@@ -456,24 +456,43 @@ function updateInspector() {
 function buildAssetManifest() {
   return {
     images: {
-      // Ground tiles
-      'ground-01a': '/sprites/tiles/Ground_Tile_Dirty_Road_1.png',
-      'ground-01b': '/sprites/tiles/Ground_Tile_Grass_1.png',
-      'ground-02a': '/sprites/tiles/Ground_Tile_Dirty_Road_2.png',
-      'ground-winter': '/sprites/tiles/Ground_Tile_Dirty_Road_Winter_1.png',
-      'ground-water': '/sprites/tiles/Ground_Tile_Water_1.png',
-      // Objects
-      'block-a01': '/sprites/tiles/Block_A_01.png',
-      'block-b01': '/sprites/tiles/Block_B_01.png',
-      'container-a': '/sprites/tiles/Container_A.png',
-      'container-b': '/sprites/tiles/Container_B.png',
-      'container-c': '/sprites/tiles/Container_C.png',
-      'container-d': '/sprites/tiles/Container_D.png',
-      'hedgehog-a': '/sprites/tiles/Czech_Hdgehog_A.png',
-      'hedgehog-b': '/sprites/tiles/Czech_Hdgehog_B.png',
-      // Decor (minimal set)
-      'decor-border-a': '/sprites/decor/Border_A.png',
-      'decor-puddle-1': '/sprites/decor/Puddle_01.png',
+      // Ground tiles (placeholder — kept for tile layer rendering)
+      'ground-01a': '/sprites/obstacles/tank_hull_wreckage.png',
+      'ground-01b': '/sprites/obstacles/tank_hull_wreckage.png',
+      'ground-02a': '/sprites/obstacles/tank_hull_wreckage.png',
+      'ground-winter': '/sprites/obstacles/tank_hull_wreckage.png',
+      'ground-water': '/sprites/obstacles/tank_hull_wreckage.png',
+      // Obstacles
+      'concrete_bunker_perfect': '/sprites/obstacles/concrete_bunker_perfect.png',
+      'concrete_bunker_half': '/sprites/obstacles/concrete_bunker_half.png',
+      'concrete_bunker_destroyed': '/sprites/obstacles/concrete_bunker_destroyed.png',
+      'container_bunker_perfect': '/sprites/obstacles/container_bunker_perfect.png',
+      'container_bunker_half': '/sprites/obstacles/container_bunker_half.png',
+      'container_bunker_destroyed': '/sprites/obstacles/container_bunker_destroyed.png',
+      'sandbag_bunker_perfect': '/sprites/obstacles/sandbag_bunker_perfect.png',
+      'sandbag_bunker_half': '/sprites/obstacles/sandbag_bunker_half.png',
+      'sandbag_bunker_destroyed': '/sprites/obstacles/sandbag_bunker_destroyed.png',
+      'tank_hull_wreckage': '/sprites/obstacles/tank_hull_wreckage.png',
+      'helicopter_wreckage': '/sprites/obstacles/helicopter_wreckage.png',
+      'ammo_crate_base': '/sprites/obstacles/ammo_crate_base.png',
+      'ammo_crate_legend': '/sprites/obstacles/ammo_crate_legend.png',
+      'ammo_crate_premium': '/sprites/obstacles/ammo_crate_premium.png',
+      'barrel_blue': '/sprites/obstacles/barrel_blue.png',
+      'barrel_red': '/sprites/obstacles/barrel_red.png',
+      'barrel_yellow': '/sprites/obstacles/barrel_yellow.png',
+      'dynamite_box': '/sprites/obstacles/dynamite_box.png',
+      // Legacy object keys (mapped to obstacles for compatibility)
+      'block-a01': '/sprites/obstacles/tank_hull_wreckage.png',
+      'block-b01': '/sprites/obstacles/tank_hull_wreckage.png',
+      'container-a': '/sprites/obstacles/container_bunker_perfect.png',
+      'container-b': '/sprites/obstacles/container_bunker_perfect.png',
+      'container-c': '/sprites/obstacles/container_bunker_perfect.png',
+      'container-d': '/sprites/obstacles/container_bunker_perfect.png',
+      'hedgehog-a': '/sprites/obstacles/tank_hull_wreckage.png',
+      'hedgehog-b': '/sprites/obstacles/tank_hull_wreckage.png',
+      // Legacy decor keys (no longer used)
+      'decor-border-a': '/sprites/obstacles/tank_hull_wreckage.png',
+      'decor-puddle-1': '/sprites/obstacles/tank_hull_wreckage.png',
     },
     audio: {},
   };
