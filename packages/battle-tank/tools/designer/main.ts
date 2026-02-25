@@ -325,10 +325,11 @@ async function loadMapWithFiles(
       const img = new Image();
       img.onload = () => {
         state.backgroundImage = img;
-        console.log('Background image loaded:', imageFile.name);
+        console.log('Background image loaded:', imageFile.name, `(${img.width}x${img.height})`);
       };
       img.onerror = () => {
-        console.warn('Failed to load background image:', imageFile.name);
+        console.error('Failed to load background image:', imageFile.name);
+        state.backgroundImage = null;
       };
       img.src = imgUrl;
     } else {

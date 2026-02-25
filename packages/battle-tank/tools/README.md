@@ -39,11 +39,13 @@ npm run designer
 Navigate to http://localhost:5174
 
 **Workflow**:
-1. **Load**: Upload `.json` map or select from generated maps
+1. **Load**: Upload `.json` map (+ optional `.jpg/.png` background image). Viewport auto-centers on map. Multiple files auto-pair by basename.
 2. **Edit**: Select tool (select/paint/erase/fill/rect) → modify tiles
 3. **Validate**: Auto-validates connectivity, density, symmetry
 4. **Save**: Exports `.json` (auto-updates on save)
 5. **Export**: Generate `.ts` file for game
+
+**Background Images**: Load reference photos alongside `.json` maps. Images overlay under terrain/objects for layout tracing. Supported: `.jpg`, `.jpeg`, `.png`.
 
 **Tools**:
 - **Select** (◉): Click tile → inspect/edit individual cell
@@ -91,7 +93,7 @@ tools/
 ├── designer/
 │   ├── index.html             # UI layout
 │   ├── DesignerState.ts       # State model + types
-│   ├── DesignerActions.ts     # Mutations (atomic)
+│   ├── DesignerActions.ts     # Mutations (atomic); parses mockup symbols → ObjectIds via CHAR_MAP
 │   ├── DesignerRenderer.ts    # Canvas rendering
 │   ├── main.ts                # Init + event loop
 │   └── vite.config.ts         # Vite config for designer
@@ -126,6 +128,16 @@ tools/
 - Low walkable area (< 40%)
 - High object density (> 30%)
 
+## VFX & Effects
+
+**Explosion types** (tied to damage/event system):
+- `bomb` — Howitzer, placed bombs (proximity/timed/remote), tile destruction
+- `laser` — Laser weapon, high-energy splash impacts
+- `plasma` — Kinetic impacts, generic fallback
+- `nuclear` — Enemy tank kills, reserved for future airplane nuclear bombs
+
+Mapping is automatic via `damageType` and `explosionType` fields in weapon/bomb configs. Explosions combine sprite animation + particle effects for full impact.
+
 ## Future Enhancements
 
 - Flood fill tool implementation
@@ -134,3 +146,4 @@ tools/
 - Item placement layer
 - Export to multiple formats (JSON runtime loading)
 - Local LLM support (Ollama)
+- Airdrop/nuclear bomb weapon system

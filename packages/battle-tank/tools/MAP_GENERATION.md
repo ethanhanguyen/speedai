@@ -72,12 +72,12 @@ TRANSITION: 8–25%
 Generated `map.json` contains:
 ```json
 {
-  "mockup": "Text grid visualization (symbols space-separated)",
+  "mockup": "Text grid visualization: newline-separated rows, space-separated symbols per row (e.g., '. . G 1'). Symbols = terrain + objects from CHAR_MAP.",
   "rows": 20,
   "cols": 24,
   "spawnPoints": [{"r": 2, "c": 3}],        // Player spawn (1)
   "enemySpawns": [{"r": 17, "c": 3}, ...], // Enemy spawns (2–4)
-  "obstacles": [{"r": 5, "c": 8, "type": "shipping_container", "rotation": 0}],
+  "obstacles": [{"r": 5, "c": 8, "type": "C", "rotation": 0}],  // type = mockup symbol (e.g. "C" for shipping_container); used to override/refine mockup placement
   "chokePoints": [{"r": 10, "c": 12, "width": 2}],
   "sniperLanes": [{"r1": 0, "c1": 5, "r2": 15, "c2": 5}],
   "coverClusters": [{"r": 8, "c": 10, "value": 75}],
@@ -94,6 +94,12 @@ Generated `map.json` contains:
 }
 ```
 
+**Mockup Parsing:** The generator now extracts **both terrain and object symbols** from the mockup grid. Terrain symbols populate ground tiles; object symbols create obstacles. The `obstacles` array provides explicit placement/rotation overrides. The designer parser (`DesignerActions.ts` + `populate GridFromMockup`) resolves all symbols to TileIds/ObjectIds via CHAR_MAP lookup.
+
+## Visual Overlays
+
+Generated maps contain **structural obstacles only** (terrain-defining objects). Visual overlay objects (decorative/passable items like ammo crates, barrels, wreckage) are placed separately via the Designer tool or secondary decoration pass, since they require visible ground texture underneath.
+
 ## Symbol Reference
 
 **Terrain** (ground layer, space-separated in mockup):
@@ -108,13 +114,37 @@ Generated `map.json` contains:
 - `w` = marsh_swamp
 - (See `_symbols.json` for full legend)
 
-**Objects** (blocking obstacles):
+**Objects** (structural obstacles, used in obstacles `type` field):
 - `R` = boulder_formation
 - `C` = shipping_container
-- `W` = water_hazard
-- `F` = fortified_bunker
-- `E` = rocky_elevation
+- `W` = water_channel
+- `F` = concrete_barrier
+- `B` = concrete_bunker
+- `c` = container_bunker
+- `s` = sandbag_bunker
+- `E` = escarpment
+- `M` = moraine_ridge
+- `K` = karst_outcrop
+- `I` = ice_wall
+- `Y` = canyon_wall
+- `Z` = frozen_lake_edge
+- `Q` = quarry_pit_wall
+- `#` = rock_wall
+- `_` = anti_tank_ditch
+- `/` = mountainside
+- `p` = railroad_embankment
+- `~` = deep_wadi
+- `X` = cliff_face
 - (See `_symbols.json` for full legend)
+
+**Visual Overlay Objects** (decoration overlays, placed post-generation on any terrain):
+- `T` = tank_hull_wreckage (destructible)
+- `H` = helicopter_wreckage (destructible)
+- `D` = oil_derrick (destructible)
+- `U` = ruined_structure (destructible)
+- `A` = ammo_crate
+- `v` = barrel (multi-variant: blue/red/yellow)
+- `*` = dynamite_box (destructible)
 
 **Spawn Markers** (meta):
 - `1` = Player spawn
@@ -136,7 +166,7 @@ Validation failures prevent save; warnings allow generation with feedback.
 1. **Prompt → Theme Detection**: Keywords (desert, urban, jungle, snow) auto-identify theme
 2. **Schema Building**: Terrain/object legends + category targets injected into system prompt
 3. **LLM Generation**: Claude generates JSON mockup + strategic features
-4. **Parsing**: Extract JSON, validate structure
+4. **Parsing**: Extract JSON, validate structure; resolve obstacle symbols → ObjectIds via CHAR_MAP
 5. **Validation**: Check walkability, connectivity, density
 6. **Enrichment**: Compute stats (category distribution, playstyle profile, sight control)
 7. **Output**: Save `.json`, `.txt` mockup, symbol reference, and image prompt
@@ -168,6 +198,15 @@ Edit `llm` in `MapGenConfig.ts`:
 | Validation fails | Check error location; may need simpler prompt or larger map |
 | Low walkable % | Ask for more open terrain in prompt |
 | Boring layout | Increase temperature (default 0.7) in config |
+
+## VFX & Effects
+
+Destruction of generated obstacles triggers explosion animations automatically:
+- **Tile destruction** → Plasma explosion (generic, destructible obstacles)
+- **Obstacle destruction events** → Sprite animation + particle effects
+- **Explosion types** (bomb/laser/plasma/nuclear) auto-selected by damage type
+
+No map configuration needed — VFX respond to game events (tile:destroyed, splash:detonated, entity:killed).
 
 ## Files
 - `generate-map.ts` — CLI entry point

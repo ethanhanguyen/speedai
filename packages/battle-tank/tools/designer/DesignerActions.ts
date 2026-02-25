@@ -2,7 +2,7 @@ import { GridModel } from '@speedai/game-engine';
 import type { DesignerState, GridSnapshot } from './DesignerState.js';
 import { TileId, ObjectId, DecorId } from '../../src/tilemap/types.js';
 import type { TileCell, MapData } from '../../src/tilemap/types.js';
-import { OBJECT_DEFS } from '../../src/tilemap/TileRegistry.js';
+import { OBJECT_DEFS, CHAR_MAP } from '../../src/tilemap/TileRegistry.js';
 import { MAP_CONFIG } from '../../src/config/MapConfig.js';
 import { validateGrid } from '../MapValidator.js';
 import { resolveAnchor, getOccupiedCells } from '../../src/tilemap/MultiTileUtils.js';
@@ -10,32 +10,147 @@ import { resolveAnchor, getOccupiedCells } from '../../src/tilemap/MultiTileUtil
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /**
+ * Build mockup symbol → ObjectId lookup from CHAR_MAP.
+ */
+function getMockupLookup(): Map<string, ObjectId> {
+  const lookup = new Map<string, ObjectId>();
+  for (const [symbol, cell] of Object.entries(CHAR_MAP)) {
+    if (cell.object !== ObjectId.NONE) {
+      lookup.set(symbol, cell.object);
+    }
+  }
+  return lookup;
+}
+
+/**
  * Load a map from JSON file content.
+ * Handles both native format (with grid 2D array) and generate-map format (with obstacles array).
  */
 export function loadMap(state: DesignerState, jsonContent: string): Result<void> {
   try {
     const data = JSON.parse(jsonContent);
-    const { rows, cols, grid: gridData, spawnPoints, enemySpawns } = data;
 
-    const grid = new GridModel<TileCell>(rows, cols, MAP_CONFIG.tileSize, 0);
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        grid.set(r, c, gridData[r][c]);
-      }
+    // Detect format
+    if (data.grid) {
+      // Native designer format
+      return loadNativeFormat(state, data);
+    } else if (data.obstacles !== undefined || (data.rows && data.cols)) {
+      // Generate-map format
+      return loadGenerateMapFormat(state, data);
+    } else {
+      return { ok: false, error: 'Unknown map format' };
     }
-
-    state.grid = grid;
-    state.mapData = { rows, cols, spawnPoints, enemySpawns };
-    state.history = [];
-    state.historyIndex = -1;
-    state.validationResult = validateGrid(grid, state.mapData);
-    state.camera = { x: 0, y: 0, zoom: 1 };
-    state.selectedCell = null;
-
-    return { ok: true, value: undefined };
   } catch (err: any) {
     return { ok: false, error: err.message };
   }
+}
+
+/**
+ * Load native designer format (with pre-built grid 2D array).
+ */
+function loadNativeFormat(state: DesignerState, data: any): Result<void> {
+  const { rows, cols, grid: gridData, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones } = data;
+
+  const grid = new GridModel<TileCell>(rows, cols, MAP_CONFIG.tileSize, 0);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid.set(r, c, gridData[r][c]);
+    }
+  }
+
+  state.grid = grid;
+  state.mapData = {
+    rows,
+    cols,
+    spawnPoints,
+    enemySpawns,
+    chokePoints,
+    sniperLanes,
+    coverClusters,
+    hazardZones,
+  };
+  state.history = [];
+  state.historyIndex = -1;
+  state.validationResult = validateGrid(grid, state.mapData);
+  centerCameraOnMap(state, grid);
+  state.selectedCell = null;
+
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Load generate-map format (with flat obstacles array).
+ * Converts to internal grid representation.
+ */
+function loadGenerateMapFormat(state: DesignerState, data: any): Result<void> {
+  const { rows, cols, obstacles, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones } = data;
+
+  if (!rows || !cols) {
+    return { ok: false, error: 'Missing rows or cols in map data' };
+  }
+
+  // Build 2D grid from flat obstacles array
+  const grid = new GridModel<TileCell>(rows, cols, MAP_CONFIG.tileSize, 0);
+
+  // Fill all cells with default terrain
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid.set(r, c, {
+        ground: TileId.LOOSE_SAND,
+        object: ObjectId.NONE,
+      });
+    }
+  }
+
+  // Build mockup → ObjectId lookup
+  const mockupLookup = getMockupLookup();
+
+  // Place obstacles from flat array
+  for (const obstacle of obstacles || []) {
+    const cell = grid.get(obstacle.r, obstacle.c);
+    if (cell && obstacle.r >= 0 && obstacle.r < rows && obstacle.c >= 0 && obstacle.c < cols) {
+      // Resolve ObjectId from mockup symbol or use directly if already ObjectId
+      let objectId: ObjectId = ObjectId.NONE;
+      if (obstacle.type) {
+        objectId = mockupLookup.get(obstacle.type) ?? (obstacle.type as ObjectId);
+      }
+      grid.set(obstacle.r, obstacle.c, {
+        ...cell,
+        object: objectId,
+        objectRotation: obstacle.rotation ?? 0,
+      });
+    }
+  }
+
+  // Store strategic features in mapData
+  state.mapData = {
+    rows,
+    cols,
+    spawnPoints: spawnPoints || [],
+    enemySpawns: enemySpawns || [],
+    chokePoints,
+    sniperLanes,
+    coverClusters,
+    hazardZones,
+  };
+
+  state.grid = grid;
+  state.history = [];
+  state.historyIndex = -1;
+  state.validationResult = validateGrid(grid, state.mapData);
+  centerCameraOnMap(state, grid);
+  state.selectedCell = null;
+
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Center camera on map bounds.
+ */
+function centerCameraOnMap(state: DesignerState, grid: GridModel<TileCell>): void {
+  const mapCenterX = (grid.cols * MAP_CONFIG.tileSize) / 2;
+  const mapCenterY = (grid.rows * MAP_CONFIG.tileSize) / 2;
+  state.camera = { x: mapCenterX, y: mapCenterY, zoom: 1 };
 }
 
 /**
@@ -295,7 +410,7 @@ export function toggleDecor(state: DesignerState, r: number, c: number, decorId:
 }
 
 /**
- * Clear tile (reset to grass, no object, no decors).
+ * Clear tile (reset to grass_plains, no object, no decors).
  */
 export function clearTile(state: DesignerState, r: number, c: number): void {
   if (!state.grid) return;
@@ -304,7 +419,7 @@ export function clearTile(state: DesignerState, r: number, c: number): void {
   setObject(state, r, c, ObjectId.NONE, 0);
   const cell = state.grid.get(r, c);
   if (cell) {
-    cell.ground = TileId.GRASS;
+    cell.ground = TileId.GRASS_PLAINS;
     cell.decors = [];
     state.grid.set(r, c, cell);
   }

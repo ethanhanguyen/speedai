@@ -14,7 +14,7 @@ import { OBJECT_DEFS, TILE_DEFS, CHAR_MAP } from '../src/tilemap/TileRegistry.js
 import type { TileCell, MapData } from '../src/tilemap/types.js';
 import { ObjectId } from '../src/tilemap/types.js';
 import { getAllTerrains } from '../src/config/TerrainDatabase.js';
-import { getAllObjects } from '../src/config/ObjectDatabase.js';
+import { getStructuralObjects } from '../src/config/ObjectDatabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -89,6 +89,44 @@ const CATEGORY_MAP: Record<string, string> = {
   depression: 'TRANSITION',
   ridge_crest: 'TRANSITION',
 };
+
+/**
+ * Build symbol → TileCell lookup from CHAR_MAP.
+ */
+function buildSymbolToTileLookup(): Map<string, TileCell> {
+  const lookup = new Map<string, TileCell>();
+  for (const [symbol, cell] of Object.entries(CHAR_MAP)) {
+    if (!['1', '2'].includes(symbol)) {
+      lookup.set(symbol, cell);
+    }
+  }
+  return lookup;
+}
+
+/**
+ * Parse mockup string and populate grid with terrain + objects.
+ * Mockup format: space-separated symbols per row, newline-separated rows.
+ */
+function populateGridFromMockup(
+  grid: GridModel<TileCell>,
+  mockup: string,
+  symbolToTile: Map<string, TileCell>
+): void {
+  const rows = mockup.trim().split('\n');
+  for (let r = 0; r < rows.length && r < grid.rows; r++) {
+    const symbols = rows[r].trim().split(/\s+/);
+    for (let c = 0; c < symbols.length && c < grid.cols; c++) {
+      const symbol = symbols[c];
+      const tileCell = symbolToTile.get(symbol);
+      if (tileCell) {
+        grid.set(r, c, { ...tileCell });
+      } else {
+        // Fallback to loose_sand if symbol not found
+        grid.set(r, c, { ground: 'loose_sand' as any, object: 'none' as any });
+      }
+    }
+  }
+}
 
 function detectThemeFromPrompt(prompt: string): string {
   const lowerPrompt = prompt.toLowerCase();
@@ -187,20 +225,13 @@ async function main() {
     0
   );
 
-  // Default background tile (loose_sand, no object)
-  const defaultTile: TileCell = {
-    ground: 'loose_sand' as any,
-    object: 'none' as any,
-  };
+  // Build reverse lookups from CHAR_MAP
+  const symbolToTile = buildSymbolToTileLookup();
 
-  // Fill entire grid with default
-  for (let r = 0; r < generatedMap.rows; r++) {
-    for (let c = 0; c < generatedMap.cols; c++) {
-      grid.set(r, c, { ...defaultTile });
-    }
-  }
+  // Parse mockup to populate grid with terrain + objects
+  populateGridFromMockup(grid, generatedMap.mockup, symbolToTile);
 
-  // Apply obstacles (blocking objects)
+  // Apply obstacles array (for explicit object placement/rotation)
   for (const obstacle of generatedMap.obstacles || []) {
     const cell = grid.get(obstacle.r, obstacle.c);
     if (cell) {
@@ -310,10 +341,10 @@ function buildSystemPrompt(schema: any, themeName: string = 'mixed'): string {
     })
     .join('\n\n');
 
-  // Build object legend from ObjectDatabase with full tactical metadata
-  const allObjects = getAllObjects();
-  const objectLegend = allObjects
-    .map((obj) => {
+  // Build object legend from ObjectDatabase with full tactical metadata (structural objects only)
+  const structuralObjects = getStructuralObjects();
+  const objectLegend = structuralObjects
+    .map((obj: any) => {
       return `${obj.symbol},${obj.displayName},"${obj.effectsDescription}","${obj.strategicRole}","${obj.historicalContext}",${(obj.coverPercent * 100).toFixed(0)}%,${obj.sightBlockRange}`;
     })
     .join('\n');
