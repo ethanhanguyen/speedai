@@ -40,6 +40,7 @@ export interface DesignerState {
 
   // Background image (optional)
   backgroundImage: HTMLImageElement | null;
+  backgroundImageOpacity: number;
 
   // UI flags
   showGrid: boolean;
@@ -70,6 +71,7 @@ export function createInitialState(): DesignerState {
     maxHistory: 50,
     validationResult: null,
     backgroundImage: null,
+    backgroundImageOpacity: 1,
     showGrid: true,
     showValidation: true,
     showStrategicZones: false,

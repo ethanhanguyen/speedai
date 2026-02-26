@@ -4,6 +4,7 @@
  */
 
 import objectDataJson from './ObjectData.json';
+import { getObjectArchetype } from './ArchetypeDatabase.js';
 
 export type ObjectCategory = 'CHANNEL' | 'NATURAL' | 'ELEVATION' | 'FORTIFICATION' | 'INDUSTRIAL' | 'HAZARD';
 
@@ -15,6 +16,7 @@ export interface ObjectDef {
   strategicRole: string;       // e.g., "Map dividers", "Defensive rocks"
   historicalContext: string;   // Real battle reference
   category: ObjectCategory;
+  archetypeId: string;         // Maps to ObjectArchetype for gameplay mechanics
   coverPercent: number;        // % damage reduction (0–1.0)
   sightBlockRange: number;     // cells of vision blocked (0–3)
   isImpassable: boolean;       // Movement blocking flag
@@ -181,6 +183,24 @@ export function getDestructibleObjects(): ObjectDef[] {
  */
 export function getIndestructibleObjects(): ObjectDef[] {
   return OBJECT_DATA.filter((o) => o.isDestructible !== true);
+}
+
+/**
+ * Get gameplay stats for object via its archetype.
+ * Returns canonical archetype values, not generation-type values.
+ */
+export function getObjectGameplayStats(objectName: string): { coverPercent: number; sightBlockRange: number; isImpassable: boolean } | undefined {
+  const obj = getObjectByName(objectName);
+  if (!obj) return undefined;
+
+  const archetype = getObjectArchetype(obj.archetypeId);
+  if (!archetype) return undefined;
+
+  return {
+    coverPercent: archetype.coverPercent,
+    sightBlockRange: archetype.sightBlockRange,
+    isImpassable: archetype.isImpassable,
+  };
 }
 
 /**

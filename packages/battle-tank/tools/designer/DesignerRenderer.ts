@@ -8,7 +8,6 @@ import { ObjectId } from '../../src/tilemap/types.js';
 /** Strategic zone color definitions. */
 const ZONE_COLORS = {
   chokePoints: { rgba: 'rgba(255, 200, 0, 0.15)', label: 'Choke Point', color: '#ffc800' },
-  sniperLanes: { rgba: 'rgba(0, 255, 255, 0.1)', label: 'Sniper Lane', color: '#00ffff' },
   ambushZones: { rgba: 'rgba(200, 0, 200, 0.15)', label: 'Ambush Zone', color: '#c800c8' },
   hazardZones: { rgba: 'rgba(255, 50, 50, 0.2)', label: 'Hazard Zone', color: '#ff3232' },
 } as const;
@@ -51,7 +50,7 @@ export function renderDesigner(
 
   // Draw background image if available
   if (state.backgroundImage) {
-    drawBackgroundImage(ctx, state.backgroundImage, worldWidth, worldHeight);
+    drawBackgroundImage(ctx, state.backgroundImage, worldWidth, worldHeight, state.backgroundImageOpacity);
   }
 
   // Draw ground layer first, then objects
@@ -83,24 +82,27 @@ export function renderDesigner(
     drawTileSymbols(ctx, state);
   }
 
-  // Draw validation errors
+  // Draw validation warnings
   if (state.showValidation && state.validationResult) {
-    drawValidationErrors(ctx, state);
+    drawValidationWarnings(ctx, state);
   }
 
   ctx.restore();
 }
 
 /**
- * Draw background image scaled to world dimensions.
+ * Draw background image scaled to world dimensions with opacity.
  */
 function drawBackgroundImage(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   worldWidth: number,
-  worldHeight: number
+  worldHeight: number,
+  opacity: number
 ): void {
+  ctx.globalAlpha = opacity;
   ctx.drawImage(img, 0, 0, worldWidth, worldHeight);
+  ctx.globalAlpha = 1;
 }
 
 /**
@@ -216,29 +218,21 @@ function drawTileSymbols(ctx: CanvasRenderingContext2D, state: DesignerState): v
 }
 
 /**
- * Draw validation error indicators.
+ * Draw validation warning indicators.
  */
-function drawValidationErrors(ctx: CanvasRenderingContext2D, state: DesignerState): void {
+function drawValidationWarnings(ctx: CanvasRenderingContext2D, state: DesignerState): void {
   if (!state.validationResult) return;
 
   const tileSize = MAP_CONFIG.tileSize;
 
-  for (const error of state.validationResult.errors) {
-    if (error.position) {
-      const x = error.position.c * tileSize;
-      const y = error.position.r * tileSize;
+  for (const warning of state.validationResult.warnings) {
+    if (warning.position) {
+      const x = warning.position.c * tileSize;
+      const y = warning.position.r * tileSize;
 
-      ctx.strokeStyle = '#ff3333';
+      ctx.strokeStyle = '#ffaa33';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, tileSize, tileSize);
-
-      // Draw X
-      ctx.beginPath();
-      ctx.moveTo(x + 4, y + 4);
-      ctx.lineTo(x + tileSize - 4, y + tileSize - 4);
-      ctx.moveTo(x + tileSize - 4, y + 4);
-      ctx.lineTo(x + 4, y + tileSize - 4);
-      ctx.stroke();
     }
   }
 }
@@ -260,14 +254,6 @@ function drawStrategicZones(
   if (zones.chokePoints) {
     ctx.fillStyle = ZONE_COLORS.chokePoints.rgba;
     for (const pos of zones.chokePoints) {
-      ctx.fillRect(pos.c * tileSize, pos.r * tileSize, tileSize, tileSize);
-    }
-  }
-
-  // Sniper lanes
-  if (zones.sniperLanes) {
-    ctx.fillStyle = ZONE_COLORS.sniperLanes.rgba;
-    for (const pos of zones.sniperLanes) {
       ctx.fillRect(pos.c * tileSize, pos.r * tileSize, tileSize, tileSize);
     }
   }

@@ -1,0 +1,101 @@
+[
+  {
+    "id": "fast_ground",
+    "displayName": "Fast Ground",
+    "symbol": ".",
+    "defaultType": "grass",
+    "clearSpeed": 1.0,
+    "coverPercent": 0.0,
+    "sightBlockRange": 0,
+    "dotPerTurn": 0,
+    "description": "High-traction terrain, excellent for mobility"
+  },
+  {
+    "id": "loose_ground",
+    "displayName": "Loose Ground",
+    "symbol": ":",
+    "defaultType": "loose_sand",
+    "clearSpeed": 0.75,
+    "coverPercent": 0.0,
+    "sightBlockRange": 0,
+    "dotPerTurn": 0,
+    "description": "Soft terrain, reduced traction"
+  },
+  {
+    "id": "light_cover",
+    "displayName": "Light Cover",
+    "symbol": "~",
+    "defaultType": "scrub_vegetation",
+    "clearSpeed": 0.9,
+    "coverPercent": 0.25,
+    "sightBlockRange": 2,
+    "dotPerTurn": 0,
+    "description": "Moderate concealment, balanced mobility"
+  },
+  {
+    "id": "heavy_cover",
+    "displayName": "Heavy Cover",
+    "symbol": "#",
+    "defaultType": "rocky_outcrop",
+    "clearSpeed": 0.6,
+    "coverPercent": 0.35,
+    "sightBlockRange": 3,
+    "dotPerTurn": 0,
+    "description": "Dense concealment, slow movement"
+  },
+  {
+    "id": "slope",
+    "displayName": "Slope",
+    "symbol": "^",
+    "defaultType": "dune_slope",
+    "clearSpeed": 0.6,
+    "coverPercent": 0.15,
+    "sightBlockRange": 2,
+    "dotPerTurn": 0,
+    "description": "Elevated terrain with elevation gameplay"
+  },
+  {
+    "id": "ice_slide",
+    "displayName": "Ice Slide",
+    "symbol": "*",
+    "defaultType": "ice_snow_field",
+    "clearSpeed": 0.7,
+    "coverPercent": 0.0,
+    "sightBlockRange": 0,
+    "dotPerTurn": 0,
+    "description": "Slippery surface, high slide risk"
+  },
+  {
+    "id": "bog",
+    "displayName": "Bog",
+    "symbol": "%",
+    "defaultType": "muddy_sinkhole",
+    "clearSpeed": 0.35,
+    "coverPercent": 0.2,
+    "sightBlockRange": 1,
+    "dotPerTurn": 1,
+    "description": "Hazardous swamp terrain"
+  },
+  {
+    "id": "deep_hazard",
+    "displayName": "Deep Hazard",
+    "symbol": "&",
+    "defaultType": "deep_snow",
+    "clearSpeed": 0.2,
+    "coverPercent": 0.0,
+    "sightBlockRange": 0,
+    "dotPerTurn": 3,
+    "description": "Extreme hazard terrain, deadly crossing"
+  },
+  {
+    "id": "tactical",
+    "displayName": "Tactical",
+    "symbol": "_",
+    "defaultType": "depression",
+    "clearSpeed": 0.9,
+    "coverPercent": 0.1,
+    "sightBlockRange": 1,
+    "dotPerTurn": 0,
+    "description": "Special tactical positions (hull-down, overwatch)"
+  }
+]

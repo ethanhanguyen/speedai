@@ -5,6 +5,7 @@
 
 // Import JSON directly (resolveJsonModule: true in tsconfig)
 import terrainDataJson from './TerrainData.json';
+import { getTerrainArchetype } from './ArchetypeDatabase.js';
 
 export type TerrainCategory = 'MOBILITY' | 'DEFENSIVE' | 'HAZARD' | 'OPEN' | 'TRANSITION';
 
@@ -13,12 +14,13 @@ export interface TerrainDef {
   name: string;
   displayName: string;
   category: TerrainCategory;
+  archetypeId: string;     // Maps to TerrainArchetype for gameplay mechanics
   clearSpeed: number;      // % of base movement speed (0.3–1.4)
   coverPercent: number;    // % damage reduction (0–0.4)
   sightBlockRange: number; // cells of vision obscured (0–3)
   dotPerTurn: number;      // HP loss per turn (0–2)
   strategicRole: string;   // Map design purpose (e.g., "Open chases, ambushes")
-  
+
   historicalContext: string; // Real battle reference for flavor
   playstyleHints: string;  // Player guidance for LLM (e.g., "Poor traction, exposed")
 }
@@ -63,18 +65,35 @@ export function getTerrainsByRole(role: string): TerrainDef[] {
 }
 
 /**
+ * Get gameplay stats for terrain via its archetype.
+ * Returns canonical archetype values, not generation-type values.
+ */
+export function getTerrainGameplayStats(terrainName: string): { clearSpeed: number; coverPercent: number; sightBlockRange: number; dotPerTurn: number } | undefined {
+  const terrain = getTerrainByName(terrainName);
+  if (!terrain) return undefined;
+
+  const archetype = getTerrainArchetype(terrain.archetypeId);
+  if (!archetype) return undefined;
+
+  return {
+    clearSpeed: archetype.clearSpeed,
+    coverPercent: archetype.coverPercent,
+    sightBlockRange: archetype.sightBlockRange,
+    dotPerTurn: archetype.dotPerTurn,
+  };
+}
+
+/**
  * Backward-compatible TERRAIN_PROPERTIES for existing code.
- * Maps terrain name → gameplay mechanics (without strategic/historical data).
+ * Maps terrain name → archetype gameplay stats (canonical values, not generation-type values).
  */
 export const TERRAIN_PROPERTIES: Record<string, { clearSpeed: number; coverPercent: number; sightBlockRange: number; dotPerTurn: number }> = {};
 
 for (const terrain of TERRAIN_DATA) {
-  TERRAIN_PROPERTIES[terrain.name] = {
-    clearSpeed: terrain.clearSpeed,
-    coverPercent: terrain.coverPercent,
-    sightBlockRange: terrain.sightBlockRange,
-    dotPerTurn: terrain.dotPerTurn,
-  };
+  const archetypeStats = getTerrainGameplayStats(terrain.name);
+  if (archetypeStats) {
+    TERRAIN_PROPERTIES[terrain.name] = archetypeStats;
+  }
 }
 
 /**

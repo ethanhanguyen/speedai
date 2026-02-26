@@ -133,11 +133,6 @@ export interface MapData {
   spawnPoints: Array<{ r: number; c: number }>;
   enemySpawns: Array<{ r: number; c: number }>;
 
-  // Strategic features (optional, for LLM-generated maps):
-  chokePoints?: Array<{ r: number; c: number; width: number }>;
-  sniperLanes?: Array<{ r1: number; c1: number; r2: number; c2: number }>;
-  coverClusters?: Array<{ r: number; c: number; value: number }>;
-  hazardZones?: Array<{ r: number; c: number; severity: number }>;
 }
 
 /** Map details metadata: terrain/object stats, strategic analysis, background image. */
@@ -152,7 +147,6 @@ export interface MapMetadata {
   // Strategic zones (from analysis or LLM hints)
   strategicZones: {
     chokePoints?: Array<{ r: number; c: number }>;
-    sniperLanes?: Array<{ r: number; c: number }>;
     ambushZones?: Array<{ r: number; c: number }>;
     hazardZones?: Array<{ r: number; c: number }>;
   };

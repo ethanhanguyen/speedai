@@ -1,0 +1,82 @@
+[
+  {
+    "id": "wall",
+    "displayName": "Impassable Wall",
+    "symbol": "W",
+    "defaultType": "rock_wall",
+    "coverPercent": 1.0,
+    "sightBlockRange": 1,
+    "isImpassable": true,
+    "description": "Full-block impassable structure"
+  },
+  {
+    "id": "boulder",
+    "displayName": "Boulder",
+    "symbol": "B",
+    "defaultType": "boulder_formation",
+    "coverPercent": 1.0,
+    "sightBlockRange": 0,
+    "isImpassable": true,
+    "description": "Large natural rock formation"
+  },
+  {
+    "id": "heavy_fortification",
+    "displayName": "Heavy Fortification",
+    "symbol": "H",
+    "defaultType": "concrete_bunker",
+    "coverPercent": 1.0,
+    "sightBlockRange": 1,
+    "isImpassable": true,
+    "description": "Reinforced defensive structure"
+  },
+  {
+    "id": "light_fortification",
+    "displayName": "Light Fortification",
+    "symbol": "L",
+    "defaultType": "sandbag_bunker",
+    "coverPercent": 0.85,
+    "sightBlockRange": 1,
+    "isImpassable": true,
+    "description": "Field fortification"
+  },
+  {
+    "id": "wreckage",
+    "displayName": "Wreckage",
+    "symbol": "R",
+    "defaultType": "tank_hull_wreckage",
+    "coverPercent": 0.75,
+    "sightBlockRange": 1,
+    "isImpassable": false,
+    "description": "Passable battlefield debris"
+  },
+  {
+    "id": "container",
+    "displayName": "Container",
+    "symbol": "C",
+    "defaultType": "shipping_container",
+    "coverPercent": 1.0,
+    "sightBlockRange": 0,
+    "isImpassable": true,
+    "description": "Stackable storage container"
+  },
+  {
+    "id": "small_obstacle",
+    "displayName": "Small Obstacle",
+    "symbol": "O",
+    "defaultType": "barrel",
+    "coverPercent": 0.3,
+    "sightBlockRange": 0,
+    "isImpassable": false,
+    "description": "Low-cover tactical obstacle"
+  },
+  {
+    "id": "tall_structure",
+    "displayName": "Tall Structure",
+    "symbol": "T",
+    "defaultType": "oil_derrick",
+    "coverPercent": 0.5,
+    "sightBlockRange": 2,
+    "isImpassable": false,
+    "description": "Tall visual structure with sight block"
+  }
+]

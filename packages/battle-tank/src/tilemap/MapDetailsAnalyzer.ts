@@ -111,7 +111,6 @@ function detectStrategicZones(
   grid: GridModel<TileCell>
 ): MapMetadata['strategicZones'] {
   const chokePoints: Array<{ r: number; c: number }> = [];
-  const sniperLanes: Array<{ r: number; c: number }> = [];
   const ambushZones: Array<{ r: number; c: number }> = [];
   const hazardZones: Array<{ r: number; c: number }> = [];
 
@@ -132,15 +131,6 @@ function detectStrategicZones(
         }
       }
 
-      // Sniper lane: open terrain (low cover, high sight)
-      if (
-        terrain?.category === 'MOBILITY' &&
-        !object &&
-        terrain.sightBlockRange === 0
-      ) {
-        sniperLanes.push({ r, c });
-      }
-
       // Ambush zone: high cover with surrounding hazards
       if (
         (object?.coverPercent === 1 || (terrain && terrain.coverPercent > 0.25)) &&
@@ -158,7 +148,6 @@ function detectStrategicZones(
 
   return {
     chokePoints: chokePoints.length > 0 ? chokePoints : undefined,
-    sniperLanes: sniperLanes.length > 0 ? sniperLanes : undefined,
     ambushZones: ambushZones.length > 0 ? ambushZones : undefined,
     hazardZones: hazardZones.length > 0 ? hazardZones : undefined,
   };

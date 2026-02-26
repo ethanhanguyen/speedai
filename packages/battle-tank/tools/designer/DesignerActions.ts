@@ -50,7 +50,7 @@ export function loadMap(state: DesignerState, jsonContent: string): Result<void>
  * Load native designer format (with pre-built grid 2D array).
  */
 function loadNativeFormat(state: DesignerState, data: any): Result<void> {
-  const { rows, cols, grid: gridData, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones, backgroundImage } = data;
+  const { rows, cols, grid: gridData, spawnPoints, enemySpawns, backgroundImage } = data;
 
   const grid = new GridModel<TileCell>(rows, cols, MAP_CONFIG.tileSize, 0);
   for (let r = 0; r < rows; r++) {
@@ -65,10 +65,6 @@ function loadNativeFormat(state: DesignerState, data: any): Result<void> {
     cols,
     spawnPoints,
     enemySpawns,
-    chokePoints,
-    sniperLanes,
-    coverClusters,
-    hazardZones,
   };
   state.mapMetadata = analyzeMapDetails(grid, backgroundImage);
   state.history = [];
@@ -85,7 +81,7 @@ function loadNativeFormat(state: DesignerState, data: any): Result<void> {
  * Converts to internal grid representation.
  */
 function loadGenerateMapFormat(state: DesignerState, data: any): Result<void> {
-  const { rows, cols, obstacles, spawnPoints, enemySpawns, chokePoints, sniperLanes, coverClusters, hazardZones, backgroundImage } = data;
+  const { rows, cols, obstacles, spawnPoints, enemySpawns, backgroundImage } = data;
 
   if (!rows || !cols) {
     return { ok: false, error: 'Missing rows or cols in map data' };
@@ -124,16 +120,11 @@ function loadGenerateMapFormat(state: DesignerState, data: any): Result<void> {
     }
   }
 
-  // Store strategic features in mapData
   state.mapData = {
     rows,
     cols,
     spawnPoints: spawnPoints || [],
     enemySpawns: enemySpawns || [],
-    chokePoints,
-    sniperLanes,
-    coverClusters,
-    hazardZones,
   };
 
   state.grid = grid;

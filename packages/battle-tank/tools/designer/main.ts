@@ -17,6 +17,10 @@ import {
   updateObjectProperty,
 } from './DesignerActions.js';
 import { TileId, ObjectId, DecorId } from '../../src/tilemap/types.js';
+import {
+  renderObjectProfile,
+  renderTerrainProfile,
+} from './ArchetypeProfile.js';
 
 // Global state
 let state: DesignerState = createInitialState();
@@ -119,6 +123,14 @@ function setupEventListeners() {
   document.getElementById('btn-redo')?.addEventListener('click', () => redo(state));
   document.getElementById('btn-toggle-zones')?.addEventListener('click', onToggleZonesClick);
   document.getElementById('btn-toggle-symbols')?.addEventListener('click', onToggleSymbolsClick);
+
+  // Background opacity slider
+  document.getElementById('bg-opacity-slider')?.addEventListener('input', (e) => {
+    const value = parseInt((e.target as HTMLInputElement).value);
+    state.backgroundImageOpacity = value / 100;
+    const valueEl = document.getElementById('bg-opacity-value');
+    if (valueEl) valueEl.textContent = `${value}%`;
+  });
 
   // Clear hovered cell on mouse leave
   canvas.addEventListener('mouseleave', () => {
@@ -552,6 +564,9 @@ function updateInspector() {
     groundSelect.value = cell.ground;
   }
 
+  // Update terrain archetype profile
+  updateTerrainProfilePanel(cell);
+
   // Update object select
   const objectSelect = document.getElementById('inspector-object') as HTMLSelectElement;
   if (objectSelect) {
@@ -560,6 +575,28 @@ function updateInspector() {
 
   // Update object properties section
   updateObjectPropertiesPanel(cell);
+}
+
+/**
+ * Update terrain archetype profile display.
+ */
+function updateTerrainProfilePanel(cell: any) {
+  const profileEl = document.getElementById('terrain-archetype-profile');
+  if (!profileEl) return;
+
+  try {
+    const terrainDataJson = require('../../src/config/TerrainData.json') as any;
+    const terrainDef = terrainDataJson.find((t: any) => t.name === cell.ground);
+
+    if (terrainDef && terrainDef.archetypeId) {
+      profileEl.innerHTML = renderTerrainProfile(terrainDef.archetypeId, terrainDef.displayName);
+    } else {
+      profileEl.innerHTML = '';
+    }
+  } catch (e) {
+    console.warn('Failed to load terrain profile:', e);
+    profileEl.innerHTML = '';
+  }
 }
 
 /**
@@ -593,6 +630,14 @@ function updateObjectPropertiesPanel(cell: any) {
 
     const roleEl = document.getElementById('prop-role');
     if (roleEl) roleEl.textContent = objDef.strategicRole || '-';
+
+    // Display archetype profile
+    if (objDef.archetypeId) {
+      const profileEl = document.getElementById('archetype-profile-object');
+      if (profileEl) {
+        profileEl.innerHTML = renderObjectProfile(objDef.archetypeId, objDef.displayName);
+      }
+    }
   }
 
   // Display rotation

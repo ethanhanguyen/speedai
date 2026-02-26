@@ -11,13 +11,14 @@
     "designer": "vite tools/designer --config tools/designer/vite.config.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.43.0",
     "@speedai/game-engine": "file:../game-engine"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
-    "vite": "^6.0.11",
     "@anthropic-ai/sdk": "^0.32.1",
+    "commander": "^12.1.0",
     "tsx": "^4.19.2",
-    "commander": "^12.1.0"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.11"
   }
 }

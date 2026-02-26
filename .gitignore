@@ -12,3 +12,4 @@ output_*.png
 .env
 
 packages/battle-tank/map
+packages/battle-tank/tools/generated-maps/

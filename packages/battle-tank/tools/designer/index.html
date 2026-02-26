@@ -270,6 +270,20 @@
             <div id="map-status">No map loaded</div>
           </div>
           <div class="inspector-row">
+            <label>Background Dim</label>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <input
+                type="range"
+                id="bg-opacity-slider"
+                min="0"
+                max="100"
+                value="100"
+                style="flex: 1; cursor: pointer;"
+              >
+              <span id="bg-opacity-value" style="font-size: 10px; color: #888; min-width: 30px;">100%</span>
+            </div>
+          </div>
+          <div class="inspector-row">
             <button id="btn-toggle-zones" style="width: 100%; margin-top: 8px;">Show Zones</button>
           </div>
         </div>
@@ -294,6 +308,8 @@
               <!-- Populated dynamically from TerrainData.json -->
             </select>
           </div>
+
+          <div id="terrain-archetype-profile" style="margin-top: 6px;"></div>
 
           <div class="inspector-row">
             <label>Object</label>
@@ -326,6 +342,8 @@
             <label>Strategic Role</label>
             <div id="prop-role" style="color: #888;">-</div>
           </div>
+
+          <div id="archetype-profile-object" style="margin-top: 6px;"></div>
 
           <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">
             <div class="inspector-row">
