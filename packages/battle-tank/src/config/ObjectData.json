@@ -242,25 +242,6 @@
     "isVisualOverlay": true
   },
   {
-    "symbol": "T",
-    "name": "tank_hull_wreckage",
-    "displayName": "Tank Hull Wreckage",
-    "effectsDescription": "Partial cover; destructible hazard",
-    "strategicRole": "Battlefield debris",
-    "archetypeId": "wreckage",
-    "historicalContext": "Aftermath of engagements",
-    "category": "HAZARD",
-    "coverPercent": 0.75,
-    "sightBlockRange": 1,
-    "isImpassable": false,
-    "isDestructible": true,
-    "spriteAvailable": true,
-    "spriteDir": "obstacles",
-    "spriteFile": "tank_hull_wreckage",
-    "isVisualOverlay": true,
-    "orientations": [0, 90]
-  },
-  {
     "symbol": "U",
     "name": "ruined_structure",
     "displayName": "Ruined Structure",
@@ -333,25 +314,6 @@
     "environmentVariants": ["night", "winter"]
   },
   {
-    "symbol": "H",
-    "name": "helicopter_wreckage",
-    "displayName": "Helicopter Wreckage",
-    "effectsDescription": "Large debris; full cover; hazard",
-    "strategicRole": "Battlefield aftermath",
-    "archetypeId": "wreckage",
-    "historicalContext": "Downed aircraft",
-    "category": "HAZARD",
-    "coverPercent": 1.0,
-    "sightBlockRange": 2,
-    "isImpassable": false,
-    "isDestructible": true,
-    "spriteAvailable": true,
-    "spriteDir": "obstacles",
-    "spriteFile": "helicopter_wreckage",
-    "isVisualOverlay": true,
-    "orientations": [0, 90]
-  },
-  {
     "symbol": "A",
     "name": "ammo_crate",
     "displayName": "Ammo Crate",
@@ -368,7 +330,8 @@
     "spriteDir": "obstacles",
     "spriteFile": "ammo_crate",
     "environmentVariants": ["base", "legend", "premium"],
-    "isVisualOverlay": true
+    "isVisualOverlay": true,
+    "interactionType": "lootable"
   },
   {
     "symbol": "v",
@@ -387,7 +350,8 @@
     "spriteDir": "obstacles",
     "spriteFile": "barrel",
     "environmentVariants": ["blue", "red", "yellow"],
-    "isVisualOverlay": true
+    "isVisualOverlay": true,
+    "interactionType": "explosive"
   },
   {
     "symbol": "*",
@@ -405,6 +369,7 @@
     "spriteAvailable": true,
     "spriteDir": "obstacles",
     "spriteFile": "dynamite_box",
-    "isVisualOverlay": true
+    "isVisualOverlay": true,
+    "interactionType": "explosive"
   }
 ]

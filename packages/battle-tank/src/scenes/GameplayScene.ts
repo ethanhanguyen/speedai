@@ -1,7 +1,8 @@
-import { Scene, SlowMotion } from '@speedai/game-engine';
+import { Scene, SlowMotion, ComponentFactory } from '@speedai/game-engine';
 import type {
   AssetManager, CameraSystem, UnifiedInput, GridModel,
   ObjectPoolSystem, EventBus, HealthComponent, SceneManager as SceneManagerType,
+  ComponentData,
 } from '@speedai/game-engine';
 import type { TileCell, MapData } from '../tilemap/types.js';
 import { parseTilemap } from '../tilemap/TilemapLoader.js';
@@ -23,6 +24,7 @@ import { SplashSystem } from '../combat/SplashSystem.js';
 import { HitscanSystem } from '../combat/HitscanSystem.js';
 import { BombSystem } from '../combat/BombSystem.js';
 import { VFXManager } from '../vfx/VFXManager.js';
+import { TileParticleLayer } from '../vfx/TileParticleLayer.js';
 import { DamageStateRenderer } from '../vfx/DamageStateRenderer.js';
 import { DropSystem } from '../systems/DropSystem.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
@@ -54,6 +56,10 @@ import { getSelectedDifficulty } from './MenuScene.js';
 import type { BombType } from '../config/BombConfig.js';
 import { DebugOverlay } from '../hud/DebugOverlay.js';
 import { DEBUG_CONFIG } from '../config/DebugConfig.js';
+import { TILE_OBJECT_LINK } from '../combat/TileObjectLink.js';
+import { updateObjectInteractions } from '../combat/ObjectInteractionSystem.js';
+import { getObjectByName } from '../config/ObjectDatabase.js';
+import { ObjectId } from '../tilemap/types.js';
 
 /** Per-scene key state for weapon/bomb switching edge detection. */
 const WEAPON_KEY_STATE = new Set<string>();
@@ -105,6 +111,7 @@ export class GameplayScene extends Scene {
   private terrainCosts!: TerrainCosts;
   private miniMap!: MiniMapRenderer;
   private groundCache: import('@speedai/game-engine').LayerCache | undefined;
+  private tileParticles!: TileParticleLayer;
   private debugOverlay = new DebugOverlay();
   private lastFrameTime = performance.now();
 
@@ -144,6 +151,14 @@ export class GameplayScene extends Scene {
 
     this.tileHP = new TileHPTracker();
     this.tileHP.init(this.tilemap);
+
+    // Initialize per-tile particle effects
+    this.tileParticles = new TileParticleLayer();
+    this.tileParticles.setImageResolver((key) => this.assets.getImage(key) as HTMLImageElement | undefined);
+    this.tileParticles.init(this.tilemap);
+
+    // Spawn mirror ECS entities for interactive tilemap objects
+    this.spawnInteractiveObjectEntities();
 
     // Assemble player tank from active loadout
     const loadout = getActiveLoadout();
@@ -291,6 +306,35 @@ export class GameplayScene extends Scene {
     }
   }
 
+  /**
+   * Scan tilemap for objects with interactionType and create mirror ECS entities.
+   * Objects remain in tilemap for collision/pathfinding; entities handle interaction state.
+   */
+  private spawnInteractiveObjectEntities(): void {
+    const ts = MAP_CONFIG.tileSize;
+    for (const [r, c, cell] of this.tilemap) {
+      if (!cell || cell.object === ObjectId.NONE || cell.multiTileAnchor) continue;
+
+      const objDef = getObjectByName(cell.object);
+      if (!objDef?.interactionType) continue;
+
+      const id = this.entityManager.create();
+      const centerX = (c + 0.5) * ts;
+      const centerY = (r + 0.5) * ts;
+
+      this.entityManager.addComponent(id, 'Position',
+        ComponentFactory.position(centerX, centerY) as unknown as ComponentData);
+      this.entityManager.addComponent(id, 'Health',
+        ComponentFactory.health(objDef.hp ?? 1) as unknown as ComponentData);
+      this.entityManager.addComponent(id, TILE_OBJECT_LINK, {
+        anchorR: r,
+        anchorC: c,
+        objectId: cell.object,
+        interactionType: objDef.interactionType,
+      } as unknown as ComponentData);
+    }
+  }
+
   private endGame(won: boolean): void {
     if (this.phase !== 'playing') return;
     this.phase = 'game_over_transition';
@@ -366,10 +410,16 @@ export class GameplayScene extends Scene {
     // 10. Tile collision resolution
     resolveCollisionsAndMove(this.entityManager, this.tilemap, gameDt);
 
+    // 10b. Interactive object proximity checks
+    updateObjectInteractions(this.entityManager, this.playerId, this.eventBus);
+
     // 11. Camera
     this.camera.update(gameDt);
 
-    // 12. VFX + damage states + drops + buffs + HUD
+    // 12. Tile particle effects
+    this.tileParticles.update(dt, this.camera);
+
+    // 13. VFX + damage states + drops + buffs + HUD
     this.vfx.update(dt);
     this.projRenderer.update(this.entityManager, dt);
     updateTankVFXState(this.entityManager, dt);
@@ -412,6 +462,7 @@ export class GameplayScene extends Scene {
 
     // Draw dynamic object layer and entities in world space
     drawObjectLayer(ctx, this.tilemap, this.camera, this.assets);
+    this.tileParticles.draw(ctx);
     this.drops.draw(ctx);
     this.projRenderer.draw(
       ctx, this.entityManager, this.assets,

@@ -34,12 +34,14 @@
 - Preview: `npm run preview -w packages/battle-tank`
 - Typecheck: `npm run typecheck -w packages/battle-tank`
 - Map Designer: `npm run designer -w packages/battle-tank` → http://localhost:5174
-- Generate Map (LLM): `npm run generate-map -w packages/battle-tank -- --theme <name> [--prompt "<extra>"] [--time <tod>] [--season <s>] [--landmark <ids>] [--no-landmark] --api-key <key>`
+- Generate Map (LLM): `npm run generate-map -w packages/battle-tank -- --theme <name> [--prompt "<extra>"] [--map-size <WxH>] [--time <tod>] [--season <s>] [--landmark <ids>] [--no-landmark] --api-key <key>`
   - Themes: `north_africa`, `eastern_front`, `pacific`, `urban`, `mediterranean`, `western_front`, `mixed`
+  - Map Size: `WxH` format (e.g., `20x20`; default: `20x20`; range: `8x8` to `40x40`; must be square)
   - Time: `dawn`, `day` (default), `dusk`, `night`
   - Season: `spring`, `summer` (default), `autumn`, `winter`
   - Landmark: Auto-picks 1-3 random landmarks by default. Specify IDs (e.g., `--landmark tobruk_fortress,desert_oasis`) for specific landmarks. Use `--no-landmark` to disable. Each theme has 8 landmarks.
-- Extract Map from Image: `npm run generate-map -w packages/battle-tank -- --image-path <path> --map-json <path> --api-key <google-key>`
+- Extract Map from Image: `npm run generate-map -w packages/battle-tank -- --image-path <path> --map-json <path> [--map-size <WxH>] --api-key <google-key>`
+  - Map Size: Optional `WxH` override (e.g., `20x20`; default: preserve original JSON dimensions)
   - Debug logging: API setup, response structure, text extraction methods, JSON parsing steps
 
 **Demo (Arcade Landing Page):**
@@ -69,22 +71,23 @@
 
 **Mode 1: Generate** (`--theme`):
 - `--theme` selects a theme preset (terrain/object preferred & forbidden lists, category targets)
+- `--map-size` (optional, e.g., `--map-size 20x20`; default: `20x20`) specifies grid dimensions. If omitted, LLM decides within config constraints (8–40, square)
 - Optional `--prompt` adds extra creative direction on top of the theme
-- `--time` / `--season` control environment conditions (lighting, palette, surface effects) for image prompt
+- `--time` / `--season` control environment conditions (lighting, palette, surface effects)
 - Landmarks **auto-pick 1-3 by default**; specify IDs (e.g., `--landmark tobruk_fortress,desert_oasis`) or `--no-landmark` to disable. Landmarks are compositional recipes — clusters of existing terrain+object symbols forming recognizable WWII-era structures. Each theme has 8 landmarks.
-- LLM generates mockup (text grid) + `spatialDescription` (region-by-region layout narrative for image gen)
-- Image prompt includes: `spatialDescription`, visual element descriptors (terrain types, prebaked objects, sprite exclusions), environment conditions, theme-aware natural variation hints, landmark visual hints
+- LLM generates mockup (text grid) + `spatialDescription` (region-by-region layout narrative)
 - All validation is advisory (warnings only, never blocks saving)
-- Outputs: mockup (.txt), JSON (map data + spatialDescription), symbol reference, image prompt
+- Outputs: `{name}.json` (mockup + spatialDescription + metadata)
 
 **Mode 2: Extract** (`--image-path` + `--map-json`):
 - Takes generated image + original JSON from Mode 1
 - Gemini 2.5 Pro vision analyzes image → produces **archetype mockup** (17 symbols: 9 terrain + 8 object)
 - Converts archetype symbols to default generation types via `ArchetypeDatabase` (e.g., `.` → `grass`, `W` → `rock_wall`)
 - Original mockup provided as alignment reference; spawn positions preserved
+- `--map-size` (optional) overrides original JSON dimensions (default: preserve). Format: `WxH` (e.g., `20x20`)
 - Advisory validation (structure + gameplay only) — theme validation skipped (archetypes are theme-agnostic)
 - Re-computes metadata from extracted mockup
-- Outputs: `{name}_archetype.txt` (raw vision), `{name}_extracted.txt` (converted), `{name}_extracted.json`
+- Outputs: `{name}_extracted.json` (mockup + metadata)
 - Requires `GOOGLE_API_KEY` env var or `--api-key`
 - Paths resolve in order: absolute → relative-to-cwd → relative-to-monorepo-root → relative-to-tools-dir. Examples:
   - From repo root: `npm run generate-map -w packages/battle-tank -- --image-path packages/battle-tank/tools/generated-maps/map.jpeg --map-json packages/battle-tank/tools/generated-maps/map.json --api-key <key>`
@@ -97,17 +100,23 @@
 
 **Left Panel (Tools & Palette):**
 - **Tools** (always visible): Select, Paint, Erase, Fill, Rect
-- **Palette** (visible when map loaded): Ground/Object/Rotation dropdowns — these configure what the Paint tool applies
-- **Shortcuts** (visible when map loaded): Keyboard reference (Ctrl+Z, G, Wheel, etc)
-
-Palette is hidden when no map loaded to keep UI clean & focused (Tools only).
+- **Palette** (visible when Paint tool active): Ground/Object/Rotation dropdowns — configure Paint tool behavior
+- **Shortcuts** (always visible): Full keyboard reference
 
 **Right Panel (Inspector & Map Details):**
-- **Map Info**: Dimensions, "Show Zones" button for strategic zone overlay
-- **Map Details**: Terrain & object distribution from MapMetadata
+- **Map Info**: Dimensions, background opacity slider, "Show Zones" button
 - **Inspector**: Edit selected cell (position, ground, object, rotation, properties)
-- **Archetype Profile**: Compact gameplay profile card shows passability (✓/✗), cover bar (█░░░░), sight block range, hazard/speed. Quick visual for tile comparison (e.g., passable vs. blocking paths)
-- **Object Properties**: Edit per-cell overrides (isImpassable, isDestructible, clearSpeed, strategicRole) when object is selected
+- **Archetype Profile**: Compact gameplay profile (✓/✗ passability, cover bar, sight block, hazard/speed)
+- **Object Transform**: Scale (0.25–2.0), offset (±0.5 tile) sliders for per-tile sprite tuning
+- **Object Properties**: Per-cell overrides (isImpassable, isDestructible, clearSpeed, strategicRole)
+- **Particle Effect**: Attach per-tile VFX (smoke/fire/dust/sparks/steam) with size multiplier and offset — live preview in designer
+- **Validation**: Real-time feedback
+
+**Map Controls (on-canvas, bottom-right hints):**
+- **Pan:** `Space+Drag` (all devices) | `Mid-drag` (mouse) | `↑↓←→` (arrows) | `Shift+Arrow` (fast)
+- **Zoom:** `Wheel` (mouse) | `Ctrl+Wheel` (trackpad) | `Ctrl+1/2/3` (50%/100%/200%) | `Ctrl+0` (reset)
+- **Device detection:** Auto-adapts hints based on trackpad vs. mouse (on-screen panel updates dynamically)
+- **Display:** Shows current zoom %, keyboard hints, pan/zoom limits when at bounds
 
 ## Designer Workflow: Adding Objects to Maps
 
@@ -115,6 +124,13 @@ Palette is hidden when no map loaded to keep UI clean & focused (Tools only).
 1. Load a map (Button: Load, accept `.json` + optional `.jpg/.png`)
 2. Select Paint tool, pick Terrain + Object from Palette dropdowns, set Rotation
 3. Click/drag on canvas to paint
+
+**Map Loading Formats:**
+- **Designer format** (native): 2D `grid` array with full TileCell data
+- **Generate-map format**: `mockup` string (symbol grid) + optional `obstacles` array (for rotation overrides)
+  - Mockup parsed via CHAR_MAP symbol lookup → populates terrain + objects
+  - Obstacles array applied afterward for explicit positioning/rotation
+- Both formats auto-detected by presence of `grid` vs `mockup` fields
 
 **To add new terrain or object types:**
 1. Add entry to `src/config/TerrainData.json` (terrain) or `src/config/ObjectData.json` (object)
@@ -131,8 +147,8 @@ Palette dropdowns are generated at runtime from JSON configs — new items appea
 
 ## Two-Layer Terrain & Object System
 
-### Generation Layer (54 types)
-**Source:** `TerrainData.json` (26 entries) + `ObjectData.json` (28 entries)
+### Generation Layer (52 types)
+**Source:** `TerrainData.json` (26 entries) + `ObjectData.json` (26 entries)
 - Full variety for creative map generation (LLM uses all types)
 - Each entry includes `archetypeId` field pointing to gameplay archetype
 - Used by: map generator, theme presets, landmarks, designer editing
@@ -171,7 +187,7 @@ Palette dropdowns are generated at runtime from JSON configs — new items appea
 | `boulder` | Large natural formation | boulder_formation |
 | `heavy_fortification` | Reinforced strongpoint | concrete_bunker |
 | `light_fortification` | Field fortification | sandbag_bunker, container_bunker |
-| `wreckage` | Passable battlefield debris | tank_hull_wreckage, ruined_structure, helicopter_wreckage |
+| `wreckage` | Passable battlefield debris | ruined_structure |
 | `container` | Stackable storage | shipping_container |
 | `small_obstacle` | Low-cover tactical | barrel, ammo_crate, dynamite_box |
 | `tall_structure` | Tall visual landmark | oil_derrick |
@@ -186,9 +202,27 @@ Palette dropdowns are generated at runtime from JSON configs — new items appea
 - **Archetype resolution:** Each terrain/object maps to gameplay archetype via `archetypeId` field; stats loaded from `TerrainArchetypes.json` / `ObjectArchetypes.json`
 
 **Sprite rendering:**
-- `spriteAvailable: true` → object gets sprite rendering (e.g., `tank_hull_wreckage`)
+- `spriteAvailable: true` → object gets sprite rendering (e.g., `concrete_bunker`)
 - `spriteAvailable: false/absent` → no sprite rendered; prebaked background image handles visual
+- **Wreckage note:** Battlefield wreckage (tank hulls, helicopter debris) is baked into the background image rather than placed as grid objects, for realistic environmental storytelling
 - `damageStates` / `environmentVariants` → generate sprite variant keys (e.g., `barrel_blue`, `concrete_bunker_perfect`)
+- **Aspect ratio preserved**: `drawObjectLayer()` contain-fits sprites within `displaySize` bounding box using `img.naturalWidth/naturalHeight`
+- **Per-tile transform**: `TileCell.objectTransform` supports `scale` (0.25–2.0), `offsetX`/`offsetY` (±0.5 normalized to tileSize). Config in `MAP_CONFIG.OBJECT_TRANSFORM`
+
+**Per-tile particle effects:**
+- `TileCell.particleEffect` attaches continuous VFX (smoke, fire, dust, sparks, steam) to any tile
+- `ParticleEffectId` enum in `types.ts`; `TileParticleEffect` = `{ effectId, sizeMultiplier?, offsetX?, offsetY? }`
+- Presets in `MAP_CONFIG.PARTICLE_EFFECTS.presets`; editor bounds in `MAP_CONFIG.PARTICLE_EFFECTS.tileBounds`
+- `TileParticleLayer` (`src/vfx/TileParticleLayer.ts`) manages `ParticleEmitter` instances per cell with camera culling
+- `ParticleEmitter` (`game-engine/src/effects/ParticleEmitter.ts`) — continuous emitter supporting circles, squares, streaks, sprites; color-over-life, additive blending, turbulence, damping, area emission
+- Rendered in world-space after `drawObjectLayer()`, before tanks (both gameplay and designer)
+
+**Interactive objects (hybrid ECS):**
+- `interactionType` field in `ObjectData.json`: `'explosive'`, `'lootable'`, `'pushable'`, etc.
+- Objects with `interactionType` get a **mirror ECS entity** at scene init (`TileObjectLink` component + `Position` + `Health`)
+- Object stays in tilemap for collision/pathfinding; entity handles interaction state
+- `ObjectInteractionSystem` fires `object:interact` events on proximity
+- `TileHPTracker` skips promoted objects (HP managed by entity Health component)
 
 **Asset loading flow:**
 1. **Game** (`src/main.ts`): Loops `getAllObjects()`, loads sprites for `spriteAvailable` objects (with variant support)

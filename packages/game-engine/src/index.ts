@@ -96,6 +96,14 @@ export { ScreenShake } from './effects/ScreenShake.js';
 export { SlowMotion } from './effects/SlowMotion.js';
 export { ParticleBurst } from './effects/ParticleBurst.js';
 export type { ParticleBurstConfig } from './effects/ParticleBurst.js';
+export { ParticleEmitter } from './effects/ParticleEmitter.js';
+export type {
+  ParticleEmitterConfig,
+  ParticleShape,
+  SpriteRotationMode,
+  EmitShape,
+  ParticleBlendMode,
+} from './effects/ParticleEmitter.js';
 export { Flash } from './effects/Flash.js';
 export { Juice } from './effects/Juice.js';
 

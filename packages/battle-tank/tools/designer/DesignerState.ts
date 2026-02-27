@@ -47,6 +47,10 @@ export interface DesignerState {
   showValidation: boolean;
   showStrategicZones: boolean;
   showTileSymbols: boolean;
+  showControlHints: boolean;
+
+  // Device detection
+  isTrackpad: boolean | null;  // null = unknown, true = trackpad, false = mouse
 
   // Load state
   loadError: string | null;
@@ -76,6 +80,8 @@ export function createInitialState(): DesignerState {
     showValidation: true,
     showStrategicZones: false,
     showTileSymbols: false,
+    showControlHints: true,
+    isTrackpad: null,
     loadError: null,
   };
 }

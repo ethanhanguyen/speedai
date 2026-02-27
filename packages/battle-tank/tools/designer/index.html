@@ -206,8 +206,8 @@
             <button id="tool-select" class="tool-btn active">◉ Select</button>
             <button id="tool-paint" class="tool-btn">🖌 Paint</button>
             <button id="tool-erase" class="tool-btn">⌫ Erase</button>
-            <button id="tool-fill" class="tool-btn">⬚ Fill</button>
-            <button id="tool-rect" class="tool-btn">▭ Rect</button>
+            <button id="tool-fill" class="tool-btn" disabled style="opacity: 0.4; cursor: not-allowed;">⬚ Fill</button>
+            <button id="tool-rect" class="tool-btn" disabled style="opacity: 0.4; cursor: not-allowed;">▭ Rect</button>
           </div>
         </div>
 
@@ -251,8 +251,18 @@
             <div><kbd>Ctrl+Y</kbd> Redo</div>
             <div><kbd>Ctrl+S</kbd> Save</div>
             <div><kbd>G</kbd> Toggle Grid</div>
-            <div><kbd>Mid-Drag</kbd> Pan</div>
-            <div><kbd>Wheel</kbd> Zoom</div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">
+              <div><kbd>Space+Drag</kbd> Pan</div>
+              <div><kbd>Mid-Drag</kbd> Pan (mouse)</div>
+              <div><kbd>Wheel</kbd> Zoom (mouse)</div>
+              <div><kbd>Ctrl+Wheel</kbd> Zoom (trackpad)</div>
+              <div><kbd>↑↓←→</kbd> Pan (arrows)</div>
+              <div><kbd>Shift+Arrow</kbd> Fast pan</div>
+              <div><kbd>Ctrl+0</kbd> Reset zoom</div>
+              <div><kbd>Ctrl+1/2/3</kbd> 50%/100%/200%</div>
+              <div><kbd>E</kbd> Rotate CW</div>
+              <div><kbd>Q</kbd> Rotate CCW</div>
+            </div>
           </div>
         </div>
       </div>
@@ -330,6 +340,27 @@
           </div>
         </div>
 
+        <div id="object-transform-panel" class="panel-section" style="display: none;">
+          <h3>Object Transform</h3>
+
+          <div class="inspector-row">
+            <label>Scale <span id="transform-scale-value" style="color: #00ff88;">1.00</span></label>
+            <input type="range" id="transform-scale" min="25" max="200" value="100" step="5" style="cursor: pointer;">
+          </div>
+
+          <div class="inspector-row">
+            <label>Offset X <span id="transform-offsetX-value" style="color: #00ff88;">0.00</span></label>
+            <input type="range" id="transform-offsetX" min="-50" max="50" value="0" step="5" style="cursor: pointer;">
+          </div>
+
+          <div class="inspector-row">
+            <label>Offset Y <span id="transform-offsetY-value" style="color: #00ff88;">0.00</span></label>
+            <input type="range" id="transform-offsetY" min="-50" max="50" value="0" step="5" style="cursor: pointer;">
+          </div>
+
+          <button id="btn-reset-transform" style="width: 100%; margin-top: 4px;">Reset Transform</button>
+        </div>
+
         <div id="object-properties-panel" class="panel-section" style="display: none;">
           <h3>Object Properties</h3>
 
@@ -375,6 +406,39 @@
             <label>Strategic Role (Override)</label>
             <input type="text" id="prop-strategicRole" placeholder="e.g., Map dividers">
           </div>
+        </div>
+
+        <div id="particle-effect-panel" class="panel-section" style="display: none;">
+          <h3>Particle Effect</h3>
+
+          <div class="inspector-row">
+            <label>Effect Type</label>
+            <select id="particle-effect-type">
+              <option value="">None</option>
+              <option value="smoke">Smoke</option>
+              <option value="fire">Fire</option>
+              <option value="dust">Dust</option>
+              <option value="sparks">Sparks</option>
+              <option value="steam">Steam</option>
+            </select>
+          </div>
+
+          <div class="inspector-row">
+            <label>Size <span id="particle-size-value" style="color: #00ff88;">1.00</span></label>
+            <input type="range" id="particle-size" min="25" max="300" value="100" step="10" style="cursor: pointer;">
+          </div>
+
+          <div class="inspector-row">
+            <label>Offset X <span id="particle-offsetX-value" style="color: #00ff88;">0.00</span></label>
+            <input type="range" id="particle-offsetX" min="-50" max="50" value="0" step="5" style="cursor: pointer;">
+          </div>
+
+          <div class="inspector-row">
+            <label>Offset Y <span id="particle-offsetY-value" style="color: #00ff88;">0.00</span></label>
+            <input type="range" id="particle-offsetY" min="-50" max="50" value="0" step="5" style="cursor: pointer;">
+          </div>
+
+          <button id="btn-clear-particle" style="width: 100%; margin-top: 4px;">Clear Effect</button>
         </div>
 
         <div id="validation-panel">

@@ -302,6 +302,7 @@ export function drawObjectLayer(
       if (rendered.has(cellKey)) continue;
 
       const def = OBJECT_DEFS[cell.object];
+      if (!def) continue;
       const spriteKey = resolveObjectSprite(def, r, c, tilemap.cols);
       const img = assets.getImage(spriteKey);
       if (!img) continue;
@@ -310,15 +311,31 @@ export function drawObjectLayer(
       const displaySize = def.displaySize ?? { w: gridSpan.w * ts, h: gridSpan.h * ts };
       const pivot = def.pivot ?? MAP_CONFIG.MULTI_TILE.defaultPivot;
       const rotation = cell.objectRotation ?? 0;
+      const transform = cell.objectTransform;
+
+      // Contain-fit: preserve sprite aspect ratio within displaySize bounding box
+      const imgEl = img as HTMLImageElement;
+      const aspectRatio = imgEl.naturalWidth / imgEl.naturalHeight;
+      let fitW = displaySize.w;
+      let fitH = displaySize.w / aspectRatio;
+      if (fitH > displaySize.h) {
+        fitH = displaySize.h;
+        fitW = displaySize.h * aspectRatio;
+      }
+
+      // Apply per-tile scale
+      const scale = transform?.scale ?? MAP_CONFIG.OBJECT_TRANSFORM.defaultScale;
+      fitW *= scale;
+      fitH *= scale;
 
       // Calculate object center in world space using rotation-aware dimensions
       const rotatedSpan = getRotatedDimensions(gridSpan, rotation);
-      const centerX = c * ts + (rotatedSpan.w * ts) / 2;
-      const centerY = r * ts + (rotatedSpan.h * ts) / 2;
+      const centerX = c * ts + (rotatedSpan.w * ts) / 2 + (transform?.offsetX ?? 0) * ts;
+      const centerY = r * ts + (rotatedSpan.h * ts) / 2 + (transform?.offsetY ?? 0) * ts;
 
       // Calculate pivot offset (normalized to pixels)
-      const pivotOffsetX = (pivot.x - 0.5) * displaySize.w;
-      const pivotOffsetY = (pivot.y - 0.5) * displaySize.h;
+      const pivotOffsetX = (pivot.x - 0.5) * fitW;
+      const pivotOffsetY = (pivot.y - 0.5) * fitH;
 
       ctx.save();
       ctx.translate(centerX, centerY);
@@ -328,10 +345,10 @@ export function drawObjectLayer(
       ctx.translate(pivotOffsetX, pivotOffsetY);
       ctx.drawImage(
         img,
-        -displaySize.w / 2,
-        -displaySize.h / 2,
-        displaySize.w,
-        displaySize.h,
+        -fitW / 2,
+        -fitH / 2,
+        fitW,
+        fitH,
       );
       ctx.restore();
 

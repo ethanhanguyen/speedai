@@ -3,6 +3,7 @@ import type { TileCell } from '../tilemap/types.js';
 import { ObjectId } from '../tilemap/types.js';
 import { OBJECT_DEFS } from '../tilemap/TileRegistry.js';
 import { resolveAnchor, getOccupiedCells } from '../tilemap/MultiTileUtils.js';
+import { getObjectByName } from '../config/ObjectDatabase.js';
 
 /**
  * Parallel HP tracker for destructible tile objects.
@@ -21,15 +22,20 @@ export class TileHPTracker {
     return `${r},${c}`;
   }
 
-  /** Scan grid and store initial HP for all destructible objects (anchor cells only). */
+  /**
+   * Scan grid and store initial HP for all destructible objects (anchor cells only).
+   * Skips objects with interactionType — those are managed by mirror ECS entities.
+   */
   init(grid: GridModel<TileCell>): void {
     this.hp.clear();
     for (const [r, c, cell] of grid) {
       if (cell && cell.object !== ObjectId.NONE && !cell.multiTileAnchor) {
         const def = OBJECT_DEFS[cell.object];
-        if (def.destructible) {
-          this.hp.set(TileHPTracker.key(r, c), def.hp);
-        }
+        if (!def.destructible) continue;
+        // Skip interactive objects — their HP is managed by mirror entities
+        const objData = getObjectByName(cell.object);
+        if (objData?.interactionType) continue;
+        this.hp.set(TileHPTracker.key(r, c), def.hp);
       }
     }
   }

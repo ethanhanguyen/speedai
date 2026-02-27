@@ -6,17 +6,23 @@ import {
   loadMap,
   saveMapToJSON,
   exportToTypeScript,
-  pushHistory,
   undo,
   redo,
   setGround,
   setObject,
+  paintTile,
   toggleDecor,
   clearTile,
   rotateObject,
+  rotateObjectCCW,
   updateObjectProperty,
+  updateObjectTransform,
+  setParticleEffect,
 } from './DesignerActions.js';
-import { TileId, ObjectId, DecorId } from '../../src/tilemap/types.js';
+import { MAP_CONFIG } from '../../src/config/MapConfig.js';
+import { TileId, ObjectId, DecorId, ParticleEffectId } from '../../src/tilemap/types.js';
+import type { TileParticleEffect } from '../../src/tilemap/types.js';
+import { TileParticleLayer } from '../../src/vfx/TileParticleLayer.js';
 import {
   renderObjectProfile,
   renderTerrainProfile,
@@ -28,10 +34,38 @@ let assets: AssetManager;
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 
+// Background image URL (tracked for revocation on re-load)
+let backgroundImageUrl: string | null = null;
+
+// Live particle preview layer
+let tileParticles: TileParticleLayer | null = null;
+let lastFrameTime = 0;
+
 // Mouse state
 let isDragging = false;
 let isPanning = false;
+let isSpacePanning = false;
 let lastMousePos = { x: 0, y: 0 };
+
+// Keyboard state
+let keysPressed = new Set<string>();
+
+/**
+ * Detect if input device is trackpad or mouse.
+ */
+function detectInputDevice(): void {
+  const handler = (e: WheelEvent) => {
+    // deltaMode 0 = pixels (trackpad smooth scroll), 1 = lines (mouse wheel)
+    if (e.deltaMode === 1) {
+      state.isTrackpad = false; // Mouse (line-based scroll)
+    } else if (e.deltaMode === 0) {
+      // Pixel mode: trackpads send many small deltas, mice send large discrete ones
+      state.isTrackpad = Math.abs(e.deltaY) < 50 && !Number.isInteger(e.deltaY);
+    }
+    window.removeEventListener('wheel', handler);
+  };
+  window.addEventListener('wheel', handler, { once: true, passive: true });
+}
 
 /**
  * Initialize designer.
@@ -39,19 +73,27 @@ let lastMousePos = { x: 0, y: 0 };
 export async function init() {
   console.log('Initializing Battle Tank Map Designer...');
 
+  // Detect input device on first interaction
+  detectInputDevice();
+
   // Create asset manager
   assets = new AssetManager();
 
   // Load assets (minimal set for preview)
-  const assetManifest = buildAssetManifest();
+  const assetManifest = await buildAssetManifest();
   const loadPromises: Promise<any>[] = [];
   for (const [key, path] of Object.entries(assetManifest.images)) {
     loadPromises.push(assets.loadImage(key, path));
   }
-  await Promise.all(loadPromises);
+  // Use allSettled to continue even if some sprites are missing (variants may not exist)
+  const results = await Promise.allSettled(loadPromises);
+  const failedCount = results.filter(r => r.status === 'rejected').length;
+  if (failedCount > 0) {
+    console.warn(`Designer: ${failedCount} sprites failed to load (expected for missing variants)`);
+  }
 
   // Populate terrain and object dropdowns from data configs
-  populateDropdowns();
+  await populateDropdowns();
 
   // Setup canvas
   canvas = document.getElementById('designer-canvas') as HTMLCanvasElement;
@@ -76,20 +118,55 @@ export async function init() {
 /**
  * Render loop.
  */
-function render() {
+function render(timestamp: number) {
+  const dt = lastFrameTime > 0 ? Math.min((timestamp - lastFrameTime) / 1000, 0.1) : 0;
+  lastFrameTime = timestamp;
+
   if (state.grid) {
-    renderDesigner(ctx, canvas, state, assets);
+    // Update live particle preview
+    if (tileParticles) {
+      tileParticles.update(dt, getDummyCamera());
+    }
+
+    renderDesigner(ctx, canvas, state, assets, tileParticles ?? undefined);
   } else {
     // Show empty state
-    ctx.fillStyle = '#1a1a1a';
+    const dr = MAP_CONFIG.DESIGNER_RENDERING;
+    ctx.fillStyle = dr.emptyCanvasColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = dr.emptyTextColor;
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('Load a map to begin editing', canvas.width / 2, canvas.height / 2);
   }
 
   requestAnimationFrame(render);
+}
+
+/** Create a minimal camera-like object for TileParticleLayer culling in designer. */
+function getDummyCamera(): any {
+  return {
+    x: state.camera.x,
+    y: state.camera.y,
+    zoom: state.camera.zoom,
+    getTransform() {
+      return {
+        viewportWidth: canvas.width,
+        viewportHeight: canvas.height,
+        zoom: state.camera.zoom,
+      };
+    },
+    isVisible(wx: number, wy: number, ww: number, wh: number): boolean {
+      const halfW = (canvas.width / 2) / state.camera.zoom;
+      const halfH = (canvas.height / 2) / state.camera.zoom;
+      return !(
+        wx + ww < state.camera.x - halfW ||
+        wx > state.camera.x + halfW ||
+        wy + wh < state.camera.y - halfH ||
+        wy > state.camera.y + halfH
+      );
+    },
+  };
 }
 
 /**
@@ -114,6 +191,7 @@ function setupEventListeners() {
 
   // Keyboard shortcuts
   window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
 
   // UI buttons
   document.getElementById('btn-load')?.addEventListener('click', onLoadClick);
@@ -167,22 +245,22 @@ function setupEventListeners() {
     }
   });
 
-  document.getElementById('inspector-object')?.addEventListener('change', (e) => {
+  document.getElementById('inspector-object')?.addEventListener('change', async (e) => {
     if (state.selectedCell && state.grid) {
       const objId = (e.target as HTMLSelectElement).value as ObjectId;
       setObject(state, state.selectedCell.r, state.selectedCell.c, objId, state.paintRotation);
-      updateInspector();
+      await updateInspector();
     }
   });
 
   // Object property checkboxes
   const propCheckboxes = ['isImpassable', 'isDestructible', 'isVisualOverlay'];
   for (const prop of propCheckboxes) {
-    document.getElementById(`prop-${prop}`)?.addEventListener('change', (e) => {
+    document.getElementById(`prop-${prop}`)?.addEventListener('change', async (e) => {
       if (state.selectedCell && state.grid) {
         const checked = (e.target as HTMLInputElement).checked;
         updateObjectProperty(state, state.selectedCell.r, state.selectedCell.c, prop, checked);
-        updateInspector();
+        await updateInspector();
       }
     });
   }
@@ -202,23 +280,116 @@ function setupEventListeners() {
     }
   });
 
+  // Object transform sliders
+  const transformFields = ['scale', 'offsetX', 'offsetY'] as const;
+  for (const field of transformFields) {
+    document.getElementById(`transform-${field}`)?.addEventListener('input', (e) => {
+      if (!state.selectedCell || !state.grid) return;
+      const raw = parseInt((e.target as HTMLInputElement).value);
+      const normalized = raw / 100;
+      const valueEl = document.getElementById(`transform-${field}-value`);
+      if (valueEl) valueEl.textContent = normalized.toFixed(2);
+
+      const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+      if (!cell || cell.object === ObjectId.NONE) return;
+
+      const current = cell.objectTransform ?? {};
+      updateObjectTransform(state, state.selectedCell.r, state.selectedCell.c, {
+        ...current,
+        [field]: normalized,
+      });
+    });
+  }
+
+  document.getElementById('btn-reset-transform')?.addEventListener('click', () => {
+    if (!state.selectedCell || !state.grid) return;
+    updateObjectTransform(state, state.selectedCell.r, state.selectedCell.c, undefined);
+    updateTransformPanel();
+  });
+
   // Inspector rotation
-  document.getElementById('inspector-rotation')?.addEventListener('change', (e) => {
+  document.getElementById('inspector-rotation')?.addEventListener('change', async (e) => {
     if (state.selectedCell && state.grid) {
       const rotation = parseInt((e.target as HTMLSelectElement).value);
       const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
-      if (cell && cell.object !== 'none') {
+      if (cell && cell.object !== ObjectId.NONE) {
         setObject(state, state.selectedCell.r, state.selectedCell.c, cell.object, rotation);
-        updateInspector();
+        await updateInspector();
       }
     }
+  });
+
+  // Particle effect type dropdown
+  document.getElementById('particle-effect-type')?.addEventListener('change', (e) => {
+    if (!state.selectedCell || !state.grid) return;
+    const value = (e.target as HTMLSelectElement).value;
+    if (!value) {
+      setParticleEffect(state, state.selectedCell.r, state.selectedCell.c, undefined);
+    } else {
+      const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+      const existing = cell?.particleEffect;
+      setParticleEffect(state, state.selectedCell.r, state.selectedCell.c, {
+        effectId: value as ParticleEffectId,
+        sizeMultiplier: existing?.sizeMultiplier,
+        offsetX: existing?.offsetX,
+        offsetY: existing?.offsetY,
+      });
+    }
+    syncParticleEmitter();
+  });
+
+  // Particle size slider
+  document.getElementById('particle-size')?.addEventListener('input', (e) => {
+    if (!state.selectedCell || !state.grid) return;
+    const raw = parseInt((e.target as HTMLInputElement).value);
+    const normalized = raw / 100;
+    const valueEl = document.getElementById('particle-size-value');
+    if (valueEl) valueEl.textContent = normalized.toFixed(2);
+
+    const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+    if (!cell?.particleEffect) return;
+
+    setParticleEffect(state, state.selectedCell.r, state.selectedCell.c, {
+      ...cell.particleEffect,
+      sizeMultiplier: normalized,
+    });
+    syncParticleEmitter();
+  });
+
+  // Particle offset sliders
+  const particleOffsetFields = ['offsetX', 'offsetY'] as const;
+  for (const field of particleOffsetFields) {
+    document.getElementById(`particle-${field}`)?.addEventListener('input', (e) => {
+      if (!state.selectedCell || !state.grid) return;
+      const raw = parseInt((e.target as HTMLInputElement).value);
+      const normalized = raw / 100;
+      const valueEl = document.getElementById(`particle-${field}-value`);
+      if (valueEl) valueEl.textContent = normalized.toFixed(2);
+
+      const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+      if (!cell?.particleEffect) return;
+
+      setParticleEffect(state, state.selectedCell.r, state.selectedCell.c, {
+        ...cell.particleEffect,
+        [field]: normalized,
+      });
+      syncParticleEmitter();
+    });
+  }
+
+  // Clear particle effect button
+  document.getElementById('btn-clear-particle')?.addEventListener('click', () => {
+    if (!state.selectedCell || !state.grid) return;
+    setParticleEffect(state, state.selectedCell.r, state.selectedCell.c, undefined);
+    syncParticleEmitter();
+    updateParticlePanel();
   });
 }
 
 /**
  * Mouse down handler.
  */
-function onMouseDown(e: MouseEvent) {
+async function onMouseDown(e: MouseEvent) {
   lastMousePos = { x: e.clientX, y: e.clientY };
 
   if (e.button === 1) {
@@ -226,11 +397,17 @@ function onMouseDown(e: MouseEvent) {
     isPanning = true;
     e.preventDefault();
   } else if (e.button === 0) {
-    // Left button: tool action
-    const gridPos = screenToGrid(state, canvas, e.offsetX, e.offsetY);
-    if (gridPos) {
-      handleToolAction(gridPos.r, gridPos.c);
-      isDragging = true;
+    // Left button: check for Space+drag pan first
+    if (keysPressed.has(' ')) {
+      isSpacePanning = true;
+      e.preventDefault();
+    } else {
+      // Tool action
+      const gridPos = screenToGrid(state, canvas, e.offsetX, e.offsetY);
+      if (gridPos) {
+        await handleToolAction(gridPos.r, gridPos.c);
+        isDragging = true;
+      }
     }
   }
 }
@@ -238,7 +415,7 @@ function onMouseDown(e: MouseEvent) {
 /**
  * Mouse move handler.
  */
-function onMouseMove(e: MouseEvent) {
+async function onMouseMove(e: MouseEvent) {
   const dx = e.clientX - lastMousePos.x;
   const dy = e.clientY - lastMousePos.y;
   lastMousePos = { x: e.clientX, y: e.clientY };
@@ -247,12 +424,12 @@ function onMouseMove(e: MouseEvent) {
   const gridPos = screenToGrid(state, canvas, e.offsetX, e.offsetY);
   state.hoveredCell = gridPos;
 
-  if (isPanning) {
+  if (isPanning || isSpacePanning) {
     state.camera.x -= dx / state.camera.zoom;
     state.camera.y -= dy / state.camera.zoom;
   } else if (isDragging && (state.activeTool === 'paint' || state.activeTool === 'erase')) {
     if (gridPos) {
-      handleToolAction(gridPos.r, gridPos.c);
+      await handleToolAction(gridPos.r, gridPos.c);
     }
   }
 }
@@ -263,21 +440,38 @@ function onMouseMove(e: MouseEvent) {
 function onMouseUp() {
   isDragging = false;
   isPanning = false;
+  isSpacePanning = false;
 }
 
 /**
  * Wheel handler (zoom).
+ * Works with: plain wheel (mouse), Ctrl+wheel (trackpad-friendly).
  */
 function onWheel(e: WheelEvent) {
+  const isCtrlWheel = e.ctrlKey || e.metaKey;
+
+  // Trackpad detected: require Ctrl for zoom
+  if (state.isTrackpad === true && !isCtrlWheel) return;
+
   e.preventDefault();
   const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
   state.camera.zoom = Math.max(0.1, Math.min(3, state.camera.zoom * zoomFactor));
 }
 
 /**
+ * Track key releases for Space+drag detection.
+ */
+function onKeyUp(e: KeyboardEvent) {
+  keysPressed.delete(e.key);
+}
+
+/**
  * Keyboard handler.
  */
-function onKeyDown(e: KeyboardEvent) {
+async function onKeyDown(e: KeyboardEvent) {
+  // Track pressed keys for Space+drag detection
+  keysPressed.add(e.key);
+
   if (e.ctrlKey || e.metaKey) {
     if (e.key === 'z') {
       e.preventDefault();
@@ -288,6 +482,22 @@ function onKeyDown(e: KeyboardEvent) {
     } else if (e.key === 's') {
       e.preventDefault();
       onSaveClick();
+    } else if (e.key === '0') {
+      // Ctrl+0: Reset zoom to 100%
+      e.preventDefault();
+      state.camera.zoom = 1.0;
+    } else if (e.key === '1') {
+      // Ctrl+1: Zoom to 50%
+      e.preventDefault();
+      state.camera.zoom = 0.5;
+    } else if (e.key === '2') {
+      // Ctrl+2: Zoom to 100%
+      e.preventDefault();
+      state.camera.zoom = 1.0;
+    } else if (e.key === '3') {
+      // Ctrl+3: Zoom to 200%
+      e.preventDefault();
+      state.camera.zoom = 2.0;
     }
   } else if (e.key === 'g' || e.key === 'G') {
     state.showGrid = !state.showGrid;
@@ -296,38 +506,43 @@ function onKeyDown(e: KeyboardEvent) {
     if (state.selectedCell && state.grid) {
       e.preventDefault();
       rotateObject(state, state.selectedCell.r, state.selectedCell.c);
-      updateInspector();
+      await updateInspector();
     }
   } else if (e.key === 'q' || e.key === 'Q') {
-    // Rotate object counter-clockwise
+    // Rotate object counter-clockwise (single undo step)
     if (state.selectedCell && state.grid) {
       e.preventDefault();
-      // Rotate 3 times to go counter-clockwise
-      for (let i = 0; i < 3; i++) {
-        rotateObject(state, state.selectedCell.r, state.selectedCell.c);
-      }
-      updateInspector();
+      rotateObjectCCW(state, state.selectedCell.r, state.selectedCell.c);
+      await updateInspector();
     }
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    // Arrow keys: pan
+    e.preventDefault();
+    const { ARROW_PAN_SPEED, ARROW_PAN_FAST_MULT } = MAP_CONFIG.KEY_BINDINGS;
+    const speed = e.shiftKey ? ARROW_PAN_SPEED * ARROW_PAN_FAST_MULT : ARROW_PAN_SPEED;
+    const panDist = speed / state.camera.zoom;
+
+    if (e.key === 'ArrowUp') state.camera.y -= panDist;
+    else if (e.key === 'ArrowDown') state.camera.y += panDist;
+    else if (e.key === 'ArrowLeft') state.camera.x -= panDist;
+    else if (e.key === 'ArrowRight') state.camera.x += panDist;
   }
 }
 
 /**
  * Handle tool action at grid position.
  */
-function handleToolAction(r: number, c: number) {
+async function handleToolAction(r: number, c: number) {
   if (!state.grid) return;
 
   switch (state.activeTool) {
     case 'select':
       state.selectedCell = { r, c };
-      updateInspector();
+      await updateInspector();
       break;
 
     case 'paint':
-      setGround(state, r, c, state.paintGround);
-      if (state.paintObject !== 'none') {
-        setObject(state, r, c, state.paintObject, state.paintRotation);
-      }
+      paintTile(state, r, c, state.paintGround, state.paintObject, state.paintRotation);
       break;
 
     case 'erase':
@@ -335,13 +550,8 @@ function handleToolAction(r: number, c: number) {
       break;
 
     case 'fill':
-      // TODO: Implement flood fill
-      console.log('Fill tool not yet implemented');
-      break;
-
     case 'rect':
-      // TODO: Implement rect tool
-      console.log('Rect tool not yet implemented');
+      // Disabled in UI — no-op until implemented
       break;
   }
 }
@@ -356,27 +566,24 @@ function onLoadClick() {
   input.type = 'file';
   input.multiple = true;
   input.accept = '.json,.jpg,.jpeg,.png';
-  input.onchange = async (e) => {
+  input.style.display = 'none';
+
+  input.addEventListener('change', async (e) => {
     try {
       const files = Array.from((e.target as HTMLInputElement).files || []);
-      if (files.length === 0) {
-        console.log('No files selected');
-        return;
-      }
+      if (files.length === 0) return;
 
-      console.log('Files received:', files.map(f => f.name));
-
-      // Group files by basename
+      // Group files by basename (strip extension and suffixes like _extracted, _archetype, _symbols)
       const filesByBase = new Map<string, File[]>();
       for (const file of files) {
-        const base = file.name.replace(/\.(json|jpg|jpeg|png)$/i, '').replace(/_symbols$/, '');
+        const base = file.name
+          .replace(/\.(json|jpg|jpeg|png)$/i, '')
+          .replace(/_(extracted|archetype|symbols)$/, '');
         if (!filesByBase.has(base)) {
           filesByBase.set(base, []);
         }
         filesByBase.get(base)!.push(file);
       }
-
-      console.log('Grouped files:', Array.from(filesByBase.keys()));
 
       // Load first map found
       for (const [basename, baseFiles] of filesByBase) {
@@ -384,18 +591,21 @@ function onLoadClick() {
         const imageFile = baseFiles.find(f => /\.(jpg|jpeg|png)$/i.test(f.name));
 
         if (jsonFile) {
-          console.log('Loading map:', basename, 'with files:', jsonFile.name, imageFile?.name);
           await loadMapWithFiles(state, jsonFile, imageFile);
           break;
         }
       }
     } catch (err: any) {
       const errorMsg = err?.message || 'Unknown error during file load';
-      console.error('File load handler error:', err);
+      console.error('File load error:', err);
       state.loadError = errorMsg;
       alert(`Error: ${errorMsg}`);
+    } finally {
+      document.body.removeChild(input);
     }
-  };
+  });
+
+  document.body.appendChild(input);
   input.click();
 }
 
@@ -414,33 +624,36 @@ async function loadMapWithFiles(
     if (!result.ok) {
       const errorMsg = (result as { ok: false; error: string }).error;
       state.loadError = errorMsg;
-      console.error('Map load failed:', errorMsg);
       alert(`Error loading map: ${errorMsg}`);
       return;
     }
 
     state.loadError = null;
 
+    // Revoke previous background image URL to prevent memory leak
+    if (backgroundImageUrl) {
+      URL.revokeObjectURL(backgroundImageUrl);
+      backgroundImageUrl = null;
+    }
+
     // Load background image if provided
     if (imageFile) {
-      const imgUrl = URL.createObjectURL(imageFile);
+      backgroundImageUrl = URL.createObjectURL(imageFile);
       const img = new Image();
       img.onload = () => {
         state.backgroundImage = img;
-        console.log('Background image loaded:', imageFile.name, `(${img.width}x${img.height})`);
       };
       img.onerror = () => {
-        console.error('Failed to load background image:', imageFile.name);
         state.backgroundImage = null;
       };
-      img.src = imgUrl;
+      img.src = backgroundImageUrl;
     } else {
       state.backgroundImage = null;
     }
 
-    console.log('Map loaded successfully from', jsonFile.name);
+    initTileParticles();
     updatePanelVisibility();
-    updateInspector();
+    await updateInspector();
   } catch (err: any) {
     state.loadError = err.message;
     console.error('Exception loading map:', err);
@@ -544,7 +757,7 @@ function updatePanelVisibility() {
 /**
  * Update inspector panel with selected cell info.
  */
-function updateInspector() {
+async function updateInspector() {
   updateMapStatus();
   updateMapDetails();
 
@@ -565,7 +778,7 @@ function updateInspector() {
   }
 
   // Update terrain archetype profile
-  updateTerrainProfilePanel(cell);
+  await updateTerrainProfilePanel(cell);
 
   // Update object select
   const objectSelect = document.getElementById('inspector-object') as HTMLSelectElement;
@@ -573,20 +786,27 @@ function updateInspector() {
     objectSelect.value = cell.object;
   }
 
+  // Update transform sliders
+  updateTransformPanel();
+
   // Update object properties section
-  updateObjectPropertiesPanel(cell);
+  await updateObjectPropertiesPanel(cell);
+
+  // Update particle effect panel
+  updateParticlePanel();
 }
 
 /**
  * Update terrain archetype profile display.
  */
-function updateTerrainProfilePanel(cell: any) {
+async function updateTerrainProfilePanel(cell: any) {
   const profileEl = document.getElementById('terrain-archetype-profile');
   if (!profileEl) return;
 
   try {
-    const terrainDataJson = require('../../src/config/TerrainData.json') as any;
-    const terrainDef = terrainDataJson.find((t: any) => t.name === cell.ground);
+    const terrainDataJson = await import('../../src/config/TerrainData.json');
+    const terrains = (terrainDataJson as any).default as any[];
+    const terrainDef = terrains.find((t: any) => t.name === cell.ground);
 
     if (terrainDef && terrainDef.archetypeId) {
       profileEl.innerHTML = renderTerrainProfile(terrainDef.archetypeId, terrainDef.displayName);
@@ -600,14 +820,56 @@ function updateTerrainProfilePanel(cell: any) {
 }
 
 /**
+ * Update object transform panel (scale/offset sliders).
+ */
+function updateTransformPanel() {
+  const panel = document.getElementById('object-transform-panel');
+  if (!panel) return;
+
+  if (!state.grid || !state.selectedCell) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+  if (!cell || cell.object === ObjectId.NONE) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  const t = cell.objectTransform;
+
+  const scaleSlider = document.getElementById('transform-scale') as HTMLInputElement;
+  const offsetXSlider = document.getElementById('transform-offsetX') as HTMLInputElement;
+  const offsetYSlider = document.getElementById('transform-offsetY') as HTMLInputElement;
+
+  const scaleVal = t?.scale ?? 1.0;
+  const offsetXVal = t?.offsetX ?? 0;
+  const offsetYVal = t?.offsetY ?? 0;
+
+  if (scaleSlider) scaleSlider.value = String(Math.round(scaleVal * 100));
+  if (offsetXSlider) offsetXSlider.value = String(Math.round(offsetXVal * 100));
+  if (offsetYSlider) offsetYSlider.value = String(Math.round(offsetYVal * 100));
+
+  const scaleLabel = document.getElementById('transform-scale-value');
+  const offsetXLabel = document.getElementById('transform-offsetX-value');
+  const offsetYLabel = document.getElementById('transform-offsetY-value');
+
+  if (scaleLabel) scaleLabel.textContent = scaleVal.toFixed(2);
+  if (offsetXLabel) offsetXLabel.textContent = offsetXVal.toFixed(2);
+  if (offsetYLabel) offsetYLabel.textContent = offsetYVal.toFixed(2);
+}
+
+/**
  * Update object properties panel based on selected cell.
  */
-function updateObjectPropertiesPanel(cell: any) {
+async function updateObjectPropertiesPanel(cell: any) {
   const propsPanel = document.getElementById('object-properties-panel');
   if (!propsPanel) return;
 
   // Hide if no object
-  if (cell.object === 'none') {
+  if (cell.object === ObjectId.NONE) {
     propsPanel.style.display = 'none';
     return;
   }
@@ -617,8 +879,9 @@ function updateObjectPropertiesPanel(cell: any) {
   // Get object definition from database
   let objDef: any = null;
   try {
-    const objectDataJson = require('../../src/config/ObjectData.json') as any;
-    objDef = objectDataJson.find((o: any) => o.name === cell.object);
+    const objectDataJson = await import('../../src/config/ObjectData.json');
+    const objects = (objectDataJson as any).default as any[];
+    objDef = objects.find((o: any) => o.name === cell.object);
   } catch (e) {
     console.warn('Failed to load ObjectData:', e);
   }
@@ -708,6 +971,69 @@ function updateMapDetails() {
 }
 
 /**
+ * Initialize or re-initialize the tile particle layer from the current grid.
+ */
+function initTileParticles(): void {
+  if (!state.grid) {
+    tileParticles = null;
+    return;
+  }
+  tileParticles = new TileParticleLayer();
+  tileParticles.init(state.grid);
+}
+
+/**
+ * Sync particle emitter for the currently selected cell after effect change.
+ */
+function syncParticleEmitter(): void {
+  if (!tileParticles || !state.grid || !state.selectedCell) return;
+  const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+  if (!cell) return;
+  tileParticles.syncCell(state.selectedCell.r, state.selectedCell.c, cell);
+}
+
+/**
+ * Update particle effect inspector panel for selected cell.
+ */
+function updateParticlePanel(): void {
+  const panel = document.getElementById('particle-effect-panel');
+  if (!panel) return;
+
+  if (!state.grid || !state.selectedCell) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  const cell = state.grid.get(state.selectedCell.r, state.selectedCell.c);
+  const effect = cell?.particleEffect;
+
+  const typeSelect = document.getElementById('particle-effect-type') as HTMLSelectElement;
+  if (typeSelect) typeSelect.value = effect?.effectId ?? '';
+
+  const bounds = MAP_CONFIG.PARTICLE_EFFECTS.tileBounds;
+  const sizeVal = effect?.sizeMultiplier ?? bounds.defaultSizeMultiplier;
+  const oxVal = effect?.offsetX ?? 0;
+  const oyVal = effect?.offsetY ?? 0;
+
+  const sizeSlider = document.getElementById('particle-size') as HTMLInputElement;
+  const oxSlider = document.getElementById('particle-offsetX') as HTMLInputElement;
+  const oySlider = document.getElementById('particle-offsetY') as HTMLInputElement;
+
+  if (sizeSlider) sizeSlider.value = String(Math.round(sizeVal * 100));
+  if (oxSlider) oxSlider.value = String(Math.round(oxVal * 100));
+  if (oySlider) oySlider.value = String(Math.round(oyVal * 100));
+
+  const sizeLabel = document.getElementById('particle-size-value');
+  const oxLabel = document.getElementById('particle-offsetX-value');
+  const oyLabel = document.getElementById('particle-offsetY-value');
+
+  if (sizeLabel) sizeLabel.textContent = sizeVal.toFixed(2);
+  if (oxLabel) oxLabel.textContent = oxVal.toFixed(2);
+  if (oyLabel) oyLabel.textContent = oyVal.toFixed(2);
+}
+
+/**
  * Toggle strategic zones overlay.
  */
 function onToggleZonesClick() {
@@ -733,12 +1059,13 @@ function onToggleSymbolsClick() {
  * Build asset manifest for tilemap preview.
  * Data-driven from ObjectData.json — loads variants for damageStates/environmentVariants.
  */
-function buildAssetManifest() {
+async function buildAssetManifest() {
   const images: Record<string, string> = {};
 
   try {
-    const objectDataJson = require('../../src/config/ObjectData.json') as any[];
-    for (const obj of objectDataJson) {
+    const objectDataJson = await import('../../src/config/ObjectData.json');
+    const objects = (objectDataJson as any).default as any[];
+    for (const obj of objects) {
       if (!obj.spriteAvailable || !obj.spriteFile || !obj.spriteDir) continue;
 
       const variants: string[] | undefined =

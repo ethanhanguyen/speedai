@@ -105,6 +105,14 @@ export interface TileCell {
   multiTileAnchor?: { r: number; c: number };
   /** Rotation in degrees (0, 90, 180, 270). Only set on anchor cells. */
   objectRotation?: number;
+  /** Per-tile visual transform (scale and offset within tile). */
+  objectTransform?: {
+    scale?: number;    // multiplier (default 1.0)
+    offsetX?: number;  // normalized to tileSize (-0.5 to 0.5)
+    offsetY?: number;  // normalized to tileSize (-0.5 to 0.5)
+  };
+  /** Per-tile particle effect (smoke, fire, etc.). */
+  particleEffect?: TileParticleEffect;
   /** Per-tile property overrides (editor only). */
   objectProperties?: {
     isImpassable?: boolean;
@@ -113,6 +121,26 @@ export interface TileCell {
     clearSpeed?: number;
     strategicRole?: string;
   };
+}
+
+/** Built-in particle effect presets attachable to tiles. */
+export enum ParticleEffectId {
+  SMOKE = 'smoke',
+  FIRE = 'fire',
+  DUST = 'dust',
+  SPARKS = 'sparks',
+  STEAM = 'steam',
+}
+
+/** Per-tile particle effect attachment. */
+export interface TileParticleEffect {
+  effectId: ParticleEffectId;
+  /** Size multiplier relative to preset (default 1.0). */
+  sizeMultiplier?: number;
+  /** Horizontal offset normalized to tileSize (±0.5). */
+  offsetX?: number;
+  /** Vertical offset normalized to tileSize (±0.5). */
+  offsetY?: number;
 }
 
 /** Strategic role identifiers for tactical map features. */

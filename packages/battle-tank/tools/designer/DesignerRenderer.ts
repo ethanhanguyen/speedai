@@ -4,6 +4,7 @@ import { drawGroundLayer, drawObjectLayer } from '../../src/tilemap/TilemapRende
 import { MAP_CONFIG } from '../../src/config/MapConfig.js';
 import { CHAR_MAP } from '../../src/tilemap/TileRegistry.js';
 import { ObjectId } from '../../src/tilemap/types.js';
+import type { TileParticleLayer } from '../../src/vfx/TileParticleLayer.js';
 
 /** Strategic zone color definitions. */
 const ZONE_COLORS = {
@@ -12,6 +13,9 @@ const ZONE_COLORS = {
   hazardZones: { rgba: 'rgba(255, 50, 50, 0.2)', label: 'Hazard Zone', color: '#ff3232' },
 } as const;
 
+/** Shorthand for designer rendering config. */
+const DR = () => MAP_CONFIG.DESIGNER_RENDERING;
+
 /**
  * Render designer view (reuses game's tilemap renderer for WYSIWYG).
  */
@@ -19,12 +23,15 @@ export function renderDesigner(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   state: DesignerState,
-  assets: AssetManager
+  assets: AssetManager,
+  tileParticles?: TileParticleLayer,
 ): void {
   if (!state.grid) return;
 
+  const cfg = DR();
+
   // Clear
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = cfg.emptyCanvasColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Save context
@@ -53,9 +60,12 @@ export function renderDesigner(
     drawBackgroundImage(ctx, state.backgroundImage, worldWidth, worldHeight, state.backgroundImageOpacity);
   }
 
-  // Draw ground layer first, then objects
+  // Draw ground layer first, then objects, then particle effects
   drawGroundLayer(ctx, state.grid, camera, assets);
   drawObjectLayer(ctx, state.grid, camera, assets);
+  if (tileParticles) {
+    tileParticles.draw(ctx);
+  }
 
   // Draw grid overlay
   if (state.showGrid) {
@@ -88,6 +98,11 @@ export function renderDesigner(
   }
 
   ctx.restore();
+
+  // Draw control hints (screen-space, bottom-right)
+  if (state.showControlHints) {
+    drawControlHints(ctx, canvas, state);
+  }
 }
 
 /**
@@ -111,13 +126,14 @@ function drawBackgroundImage(
 function drawGridOverlay(ctx: CanvasRenderingContext2D, state: DesignerState): void {
   if (!state.grid) return;
 
+  const cfg = DR();
   const tileSize = MAP_CONFIG.tileSize;
   const worldWidth = state.grid.cols * tileSize;
   const worldHeight = state.grid.rows * tileSize;
 
   // Adaptive opacity: lighter at higher zoom
-  const opacity = Math.min(0.4, 0.15 + state.camera.zoom * 0.08);
-  ctx.strokeStyle = `rgba(100, 200, 255, ${opacity})`;
+  const opacity = Math.min(cfg.gridMaxOpacity, cfg.gridBaseOpacity + state.camera.zoom * cfg.gridZoomScale);
+  ctx.strokeStyle = `rgba(${cfg.gridColorRGB}, ${opacity})`;
   ctx.lineWidth = 1 / state.camera.zoom;
 
   // Vertical lines
@@ -143,14 +159,15 @@ function drawGridOverlay(ctx: CanvasRenderingContext2D, state: DesignerState): v
  * Draw hover highlight (semi-transparent overlay).
  */
 function drawHoverHighlight(ctx: CanvasRenderingContext2D, r: number, c: number): void {
+  const cfg = DR();
   const tileSize = MAP_CONFIG.tileSize;
   const x = c * tileSize;
   const y = r * tileSize;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.fillStyle = cfg.hoverFill;
   ctx.fillRect(x, y, tileSize, tileSize);
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.strokeStyle = cfg.hoverStroke;
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, tileSize, tileSize);
 }
@@ -159,19 +176,23 @@ function drawHoverHighlight(ctx: CanvasRenderingContext2D, r: number, c: number)
  * Draw selection highlight with enhanced visibility.
  */
 function drawSelection(ctx: CanvasRenderingContext2D, r: number, c: number): void {
+  const cfg = DR();
   const tileSize = MAP_CONFIG.tileSize;
   const x = c * tileSize;
   const y = r * tileSize;
 
   // Outer bright border
-  ctx.strokeStyle = '#00ff88';
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = cfg.selectionColor;
+  ctx.lineWidth = cfg.selectionOuterWidth;
   ctx.strokeRect(x, y, tileSize, tileSize);
 
   // Inner subtle border
-  ctx.strokeStyle = 'rgba(0, 255, 136, 0.5)';
+  const inset = cfg.selectionInnerInset;
+  ctx.globalAlpha = cfg.selectionInnerAlpha;
+  ctx.strokeStyle = cfg.selectionColor;
   ctx.lineWidth = 1;
-  ctx.strokeRect(x + 3, y + 3, tileSize - 6, tileSize - 6);
+  ctx.strokeRect(x + inset, y + inset, tileSize - inset * 2, tileSize - inset * 2);
+  ctx.globalAlpha = 1;
 }
 
 /**
@@ -180,9 +201,10 @@ function drawSelection(ctx: CanvasRenderingContext2D, r: number, c: number): voi
 function drawTileSymbols(ctx: CanvasRenderingContext2D, state: DesignerState): void {
   if (!state.grid) return;
 
+  const cfg = DR();
   const tileSize = MAP_CONFIG.tileSize;
 
-  ctx.font = `bold ${tileSize * 0.4}px monospace`;
+  ctx.font = `bold ${tileSize * cfg.symbolFontScale}px monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -211,7 +233,7 @@ function drawTileSymbols(ctx: CanvasRenderingContext2D, state: DesignerState): v
       const x = c * tileSize + tileSize / 2;
       const y = r * tileSize + tileSize / 2;
 
-      ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
+      ctx.fillStyle = cfg.symbolColor;
       ctx.fillText(symbol, x, y);
     }
   }
@@ -223,6 +245,7 @@ function drawTileSymbols(ctx: CanvasRenderingContext2D, state: DesignerState): v
 function drawValidationWarnings(ctx: CanvasRenderingContext2D, state: DesignerState): void {
   if (!state.validationResult) return;
 
+  const cfg = DR();
   const tileSize = MAP_CONFIG.tileSize;
 
   for (const warning of state.validationResult.warnings) {
@@ -230,8 +253,8 @@ function drawValidationWarnings(ctx: CanvasRenderingContext2D, state: DesignerSt
       const x = warning.position.c * tileSize;
       const y = warning.position.r * tileSize;
 
-      ctx.strokeStyle = '#ffaa33';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = cfg.warningColor;
+      ctx.lineWidth = cfg.warningLineWidth;
       ctx.strokeRect(x, y, tileSize, tileSize);
     }
   }
@@ -321,6 +344,72 @@ function drawZoneLegend(ctx: CanvasRenderingContext2D): void {
     ctx.fillStyle = '#ddd';
     ctx.textAlign = 'left';
     ctx.fillText(label, padding + 6 + boxSize + gap, y);
+  }
+}
+
+/**
+ * Draw control hints panel (screen-space, bottom-right corner).
+ * Adapts content based on device detection and zoom level.
+ */
+function drawControlHints(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  state: DesignerState
+): void {
+  const cfg = MAP_CONFIG.CONTROL_HINTS;
+  const padding = cfg.padding;
+  const lineHeight = cfg.lineHeight;
+  const width = cfg.width;
+
+  // Build hints based on context
+  const hints: string[] = [];
+
+  if (!state.grid) {
+    // No map loaded
+    hints.push('Space+Drag: Pan');
+    hints.push('Ctrl+Wheel: Zoom');
+    hints.push('Ctrl+0: Reset Zoom');
+  } else {
+    // Map loaded - show device-specific hints
+    if (state.isTrackpad === true) {
+      hints.push('Space+Drag: Pan (trackpad)');
+      hints.push('Ctrl+Wheel: Zoom');
+    } else if (state.isTrackpad === false) {
+      hints.push('Space+Drag or Mid-Drag: Pan');
+      hints.push('Wheel or Ctrl+Wheel: Zoom');
+    } else {
+      // Unknown device - show all options
+      hints.push('Space+Drag or Mid-Drag: Pan');
+      hints.push('Wheel: Zoom');
+    }
+
+    hints.push(`Arrow Keys: Pan | Shift+Arrow: Fast`);
+    hints.push(`Ctrl+1/2/3: 50%/100%/200% | Ctrl+0: Reset`);
+    hints.push(`Zoom: ${Math.round(state.camera.zoom * 100)}%`);
+  }
+
+  const height = cfg.fontSize * 1.2 + lineHeight * hints.length + cfg.padding * 2;
+  const x = canvas.width - width - padding;
+  const y = canvas.height - height - padding;
+
+  // Background
+  ctx.fillStyle = cfg.backgroundColor;
+  ctx.fillRect(x, y, width, height);
+
+  // Border
+  ctx.strokeStyle = cfg.borderColor;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, width, height);
+
+  // Text
+  ctx.font = `${cfg.fontSize}px monospace`;
+  ctx.fillStyle = cfg.textColor;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  for (let i = 0; i < hints.length; i++) {
+    const hintY = y + cfg.padding + i * lineHeight;
+    ctx.fillText(hints[i], x + cfg.padding, hintY);
   }
 }
 

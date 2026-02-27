@@ -83,6 +83,18 @@ export const MAP_GEN_CONFIG = {
     } as Record<string, CategoryTarget>,
   },
 
+  /** Map grid sizing constraints and defaults. */
+  mapSizing: {
+    /** Default map dimensions if not specified via CLI. */
+    default: { rows: 20, cols: 20 },
+    /** Enforce square maps (rows === cols). */
+    enforceSquare: true,
+    /** Minimum grid dimension (both rows and cols). */
+    minSize: 8,
+    /** Maximum grid dimension (both rows and cols). */
+    maxSize: 40,
+  },
+
   /** Theme enforcement: how strictly to enforce preferred/forbidden lists. */
   themeEnforcement: {
     /** Max non-preferred terrain types allowed (soft limit, produces warning). */

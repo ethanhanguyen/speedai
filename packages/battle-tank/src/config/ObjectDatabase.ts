@@ -34,6 +34,7 @@ export interface ObjectDef {
   orientations?: number[];              // Default: [0]
   displaySize?: { w: number; h: number }; // Default: gridSpan * tileSize (computed at runtime)
   pivot?: { x: number; y: number };     // Default: { x: 0.5, y: 0.5 }
+  interactionType?: string;             // Runtime interaction: 'explosive', 'lootable', 'pushable', etc.
 }
 
 /**
